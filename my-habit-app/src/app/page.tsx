@@ -651,7 +651,7 @@ export default function Page() {
                         <input
                           type="checkbox"
                           checked={routine.done}
-                          onChange={(_e) => {
+                          onChange={() => {
                             toggleDone(routines.indexOf(routine));
                           }}
                         />
@@ -809,4 +809,3 @@ export default function Page() {
     </div>
   );
 }
-
