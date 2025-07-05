@@ -42,9 +42,9 @@
     "typescript": "^5"
   }
 "scripts": {
-  "build": "tsc",
-  "postinstall": "npm run build",
-  "start": "node dist/index.js"
+  "build": "next build && next export",
+  "predeploy": "npm run build",
+  "deploy": "touch out/.nojekyll && gh-pages -d out --dotfiles"
 },
 "engines": {
   "node": "18.x"
