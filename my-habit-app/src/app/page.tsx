@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 type Routine = {
@@ -48,7 +49,7 @@ function getEncouragementAndHabit(task: string) {
 }
 
 function Toast({ message, emoji, onClose }: { message: string; emoji: string; onClose: () => void }) {
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => onClose(), 2500);
     return () => clearTimeout(timer);
   }, [onClose]);
@@ -327,12 +328,12 @@ export default function Page() {
   };
 
   // 루틴 삭제
-  const handleDeleteRoutine = (idx: number) => {
+  const handleDeleteRoutine = useCallback((idx: number) => {
     if (!isLoggedIn) return alert("로그인 후 이용해주세요.");
     if (!confirm("정말 이 루틴/습관을 삭제하시겠습니까?")) return;
     setRoutines((prev) => prev.filter((_, i) => i !== idx));
     setHabitSuggestionIdx(null);
-  };
+  }, [isLoggedIn]);
 
   // 완료 토글
   const toggleDone = (idx: number) => {
@@ -456,7 +457,7 @@ export default function Page() {
   }
 
   // 오늘일기 AI 요약 먼저 생성
-  const generateDiaryAI = async () => {
+  const generateDiaryAI = useCallback(async () => {
     for (const day of fullDays) {
       const completedTasks = todayDiaryLogs[day]?.filter((task) =>
         routines.find((r) => r.day === day && r.task === task && r.done)
@@ -468,7 +469,7 @@ export default function Page() {
         setDiarySummariesAI((prev) => ({ ...prev, [day]: summary }));
       }
     }
-  };
+  }, [todayDiaryLogs, routines, diarySummariesAI]);
 
   // 요약 생성 후 이미지 생성 트리거, 개별 로딩 관리
   useEffect(() => {
@@ -484,14 +485,14 @@ export default function Page() {
         }
       }
     })();
-  }, [diarySummariesAI]);
+  }, [diarySummariesAI, diaryImagesAI, loadingAI]);
 
   // 오늘일기 탭 진입 시 요약 생성 시작
   useEffect(() => {
     if (selectedTab === "today-diary") {
       generateDiaryAI();
     }
-  }, [selectedTab, todayDiaryLogs, routines]);
+  }, [selectedTab, todayDiaryLogs, routines, generateDiaryAI]);
 
   return (
     <div className="max-w-xl mx-auto p-6 space-y-6 font-sans relative min-h-screen pb-8">
@@ -839,11 +840,14 @@ export default function Page() {
                     {loadingAI[day] ? (
                       <p className="italic text-blue-500">AI 이미지 생성 중입니다...</p>
                     ) : imageUrl ? (
-                      <img
+                      <Image
                         src={imageUrl}
                         alt={`일기 일러스트: ${diaryDateStr}`}
+                        width={256}
+                        height={256}
                         className="w-64 h-64 object-cover rounded shadow-md"
                         loading="lazy"
+                        unoptimized
                       />
                     ) : (
                       <p className="italic text-gray-400">이미지가 없습니다.</p>
