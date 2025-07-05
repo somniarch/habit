@@ -1,10 +1,8 @@
-import type { NextConfig } from "next";
-
+// next.config.ts
 const nextConfig = {
-  output: "export",
-  basePath: "/habit", // 실제 레포지토리명으로 변경
-  assetPrefix: "https://somniarch.github.io/habit", // 실제 깃허브 아이디/레포지토리명으로 변경
-  // 기타 옵션
+  // Vercel에서는 별도 설정이 없어도 자동으로 최적화됩니다.
+  // 필요하다면 기타 옵션만 추가
 };
 
 export default nextConfig;
+
