@@ -1,4 +1,3 @@
-// /src/app/openai/generate-image/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
@@ -27,9 +26,12 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ imageUrl });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Image generation error:", error);
-    return NextResponse.json({ error: error.message || "Unknown error" }, { status: 500 });
+    let message = "Unknown error";
+    if (error && typeof error === "object" && "message" in error) {
+      message = String((error as { message: unknown }).message);
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
