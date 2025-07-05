@@ -93,7 +93,6 @@ function formatMonthDay(date: Date, dayIndex: number) {
 }
 
 export default function Page() {
-  // 로그인 상태 및 정보
   const [userId, setUserId] = useState("");
   const [userPw, setUserPw] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -102,18 +101,12 @@ export default function Page() {
   const [loginError, setLoginError] = useState("");
   const [adminModeActive, setAdminModeActive] = useState(false);
 
-  // 관리자 계정 (고정)
   const adminId = "3333";
   const adminPw = "8888";
-
-  // 사용자 등록 리스트 키
   const storedUsersKey = "registeredUsers";
-
-  // 로그인 기준 키
   const routinesKey = `routines_${userId}`;
   const diaryLogsKey = `todayDiaryLogs_${userId}`;
 
-  // 주요 상태들
   const [currentDate, setCurrentDate] = useState(new Date());
   const [weekNum, setWeekNum] = useState(1);
   const [selectedDay, setSelectedDay] = useState(fullDays[0]);
@@ -132,17 +125,14 @@ export default function Page() {
     return saved ? JSON.parse(saved) : {};
   });
 
-  // AI 일기 요약 및 이미지 상태
   const [diarySummariesAI, setDiarySummariesAI] = useState<Record<string, string>>({});
   const [diaryImagesAI, setDiaryImagesAI] = useState<Record<string, string>>({});
   const [loadingAI, setLoadingAI] = useState<Record<string, boolean>>({});
 
-  // AI 습관 추천 상태
   const [aiHabitSuggestions, setAiHabitSuggestions] = useState<string[]>([]);
   const [aiHabitLoading, setAiHabitLoading] = useState(false);
   const [aiHabitError, setAiHabitError] = useState<string | null>(null);
 
-  // 저장된 사용자 불러오기, 저장
   const getRegisteredUsers = (): { id: string; pw: string }[] => {
     if (typeof window === "undefined") return [];
     const json = localStorage.getItem(storedUsersKey);
@@ -158,12 +148,10 @@ export default function Page() {
     localStorage.setItem(storedUsersKey, JSON.stringify(users));
   };
 
-  // 새 사용자 등록 (관리자)
   const [newUserId, setNewUserId] = useState("");
   const [newUserPw, setNewUserPw] = useState("");
   const [userAddError, setUserAddError] = useState("");
 
-  // 로그인 처리
   const handleLogin = () => {
     if (!userId.trim() || !userPw.trim()) {
       setLoginError("아이디와 비밀번호를 모두 입력해주세요.");
@@ -194,7 +182,6 @@ export default function Page() {
     }
   };
 
-  // 로그아웃 처리
   const handleLogout = () => {
     setIsLoggedIn(false);
     setUserId("");
@@ -204,7 +191,6 @@ export default function Page() {
     setToast({ emoji: "👋", message: "로그아웃 되었습니다." });
   };
 
-  // 사용자 등록 처리
   const handleAddUser = () => {
     if (!newUserId.trim() || !newUserPw.trim()) {
       setUserAddError("아이디와 비밀번호를 모두 입력해주세요.");
@@ -223,7 +209,6 @@ export default function Page() {
     setToast({ emoji: "✅", message: `사용자 ${newUserId} 등록 완료!` });
   };
 
-  // 루틴, 일기 저장
   useEffect(() => {
     if (userId) {
       localStorage.setItem(routinesKey, JSON.stringify(routines));
@@ -235,7 +220,6 @@ export default function Page() {
     }
   }, [todayDiaryLogs, diaryLogsKey, userId]);
 
-  // 그래프 데이터 계산
   const completionData = fullDays.map((day) => {
     const total = routines.filter((r) => r.day === day).length;
     const done = routines.filter((r) => r.day === day && r.done).length;
@@ -249,7 +233,6 @@ export default function Page() {
     return { name: day, Satisfaction: avg };
   });
 
-  // CSV 다운로드 함수
   function downloadCSV(data: Routine[]) {
     if (data.length === 0) return alert("내보낼 데이터가 없습니다.");
 
@@ -288,7 +271,6 @@ export default function Page() {
     URL.revokeObjectURL(url);
   }
 
-  // 새 습관 추가
   const addHabitBetween = (idx: number, habit: string) => {
     if (!isLoggedIn) return alert("로그인 후 이용해주세요.");
     const habitRoutine: Routine = {
@@ -306,7 +288,6 @@ export default function Page() {
     setHabitSuggestionIdx(null);
   };
 
-  // 주 변경
   const handlePrevWeek = () => {
     setWeekNum((w) => Math.max(1, w - 1));
     setCurrentDate(new Date(currentDate.getTime() - 7 * 86400000));
@@ -316,7 +297,6 @@ export default function Page() {
     setCurrentDate(new Date(currentDate.getTime() + 7 * 86400000));
   };
 
-  // 루틴 추가
   const handleAddRoutine = () => {
     if (!isLoggedIn) return alert("로그인 후 이용해주세요.");
     if (!newRoutine.task.trim()) return;
@@ -327,7 +307,6 @@ export default function Page() {
     setNewRoutine({ start: "08:00", end: "09:00", task: "" });
   };
 
-  // 완료 토글
   const toggleDone = (idx: number) => {
     if (!isLoggedIn) return alert("로그인 후 이용해주세요.");
     const copy = [...routines];
@@ -352,7 +331,6 @@ export default function Page() {
     });
   };
 
-  // 만족도 평가 설정
   const setRating = (idx: number, rating: number) => {
     if (!isLoggedIn) return alert("로그인 후 이용해주세요.");
     const copy = [...routines];
@@ -360,7 +338,6 @@ export default function Page() {
     setRoutines(copy);
   };
 
-  // OpenAI 기반 5분 이내 웰빙 습관 추천 함수 (명사형, 행동형태 + 시간 포함 추천)
   async function fetchHabitSuggestions(prevTask: string | null, nextTask: string | null): Promise<string[]> {
     const context = [prevTask, nextTask].filter(Boolean).join(", ");
     if (!context) return habitCandidates.slice(0, 3);
@@ -393,7 +370,6 @@ export default function Page() {
     }
   }
 
-  // 습관 추천 버튼 클릭 시 API 호출
   const handleFetchHabitSuggestions = async (idx: number) => {
     if (!isLoggedIn) {
       alert("로그인 후 이용해주세요.");
@@ -407,7 +383,6 @@ export default function Page() {
     setHabitSuggestionIdx(idx);
   };
 
-  // OpenAI 요약 텍스트 생성 API 호출
   async function generateSummaryAI(day: string, tasks: string[]): Promise<string> {
     try {
       const prompt = `다음은 사용자의 오늘 달성한 습관 및 일과 목록입니다:\n${tasks.join(", ")}\n이 내용을 바탕으로 따뜻하고 긍정적인 응원의 메시지와 함께 짧게 요약해 주세요.`;
@@ -427,7 +402,6 @@ export default function Page() {
     }
   }
 
-  // OpenAI DALL·E 이미지 생성 API 호출 (따뜻하고 색연필 느낌의 일러스트)
   async function generateImageAI(promptBase: string): Promise<string> {
     try {
       const prompt = `A warm, cozy colored pencil illustration with soft textures and subtle shading, resembling hand-drawn diary art. Gentle, muted colors like orange, yellow, brown, and green. The composition should feel peaceful and heartwarming, like a moment captured in a personal journal. No humans should appear in the image. The drawing should evoke quiet satisfaction and mindfulness.\n\nContent: ${promptBase}`;
@@ -448,7 +422,6 @@ export default function Page() {
     }
   }
 
-  // 오늘일기 AI 요약 먼저 생성
   const generateDiaryAI = useCallback(async () => {
     for (const day of fullDays) {
       const completedTasks = todayDiaryLogs[day]?.filter((task) =>
@@ -463,7 +436,6 @@ export default function Page() {
     }
   }, [todayDiaryLogs, routines, diarySummariesAI]);
 
-  // 요약 생성 후 이미지 생성 트리거, 개별 로딩 관리
   useEffect(() => {
     (async () => {
       for (const day of fullDays) {
@@ -479,7 +451,6 @@ export default function Page() {
     })();
   }, [diarySummariesAI, diaryImagesAI, loadingAI]);
 
-  // 오늘일기 탭 진입 시 요약 생성 시작
   useEffect(() => {
     if (selectedTab === "today-diary") {
       generateDiaryAI();
@@ -576,7 +547,6 @@ export default function Page() {
             </button>
           )}
 
-          {/* UI: 주 변경, 요일 선택, 탭 선택 */}
           <div className="flex justify-center items-center gap-4">
             <button aria-label="Previous Week" onClick={handlePrevWeek} className="px-3 py-1 text-lg font-bold">
               &lt;
@@ -631,7 +601,6 @@ export default function Page() {
             </button>
           </div>
 
-          {/* 루틴 및 습관 탭 */}
           {selectedTab === "routine-habit" && (
             <div>
               <div className="flex flex-col gap-2 mt-4">
@@ -682,13 +651,11 @@ export default function Page() {
                         <input
                           type="checkbox"
                           checked={routine.done}
-                          onChange={(e) => {
-                            e.stopPropagation();
+                          onChange={(_e) => {
                             toggleDone(routines.indexOf(routine));
                           }}
                         />
                       </div>
-
                       {routine.done && (
                         <div className="mt-1 flex gap-1 flex-wrap">
                           {[...Array(10).keys()].map((n) => (
@@ -697,25 +664,19 @@ export default function Page() {
                               className={`px-2 rounded ${
                                 routine.rating === n + 1 ? "bg-black text-white" : "bg-gray-300 text-black"
                               }`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRating(routines.indexOf(routine), n + 1);
-                              }}
+                              onClick={() => setRating(routines.indexOf(routine), n + 1)}
                             >
                               {n + 1}
                             </button>
                           ))}
                         </div>
                       )}
-
-                      {/* 습관 추천 UI */}
                       {idx < arr.length - 1 && arr.length > 1 && (
                         <>
                           {habitSuggestionIdx === idx ? (
                             <div className="p-3 bg-blue-50 rounded space-y-2 relative">
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
+                                onClick={() => {
                                   setHabitSuggestionIdx(null);
                                   setAiHabitSuggestions([]);
                                   setAiHabitError(null);
@@ -734,8 +695,7 @@ export default function Page() {
                                   {(aiHabitSuggestions.length > 0 ? aiHabitSuggestions : habitCandidates.slice(0, 3)).map((habit, i) => (
                                     <button
                                       key={i}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
+                                      onClick={() => {
                                         addHabitBetween(idx, habit);
                                         setHabitSuggestionIdx(null);
                                         setAiHabitSuggestions([]);
@@ -752,10 +712,7 @@ export default function Page() {
                           ) : (
                             <div className="text-center my-2">
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleFetchHabitSuggestions(idx);
-                                }}
+                                onClick={() => handleFetchHabitSuggestions(idx)}
                                 className="rounded-full bg-gray-300 px-3 py-1 hover:bg-gray-400"
                                 aria-label="습관 추천 열기"
                               >
@@ -771,7 +728,6 @@ export default function Page() {
             </div>
           )}
 
-          {/* 통계 탭 */}
           {selectedTab === "tracker" && (
             <div className="mt-4 space-y-6">
               <h2 className="font-semibold text-center">습관 통계</h2>
@@ -811,7 +767,6 @@ export default function Page() {
             </div>
           )}
 
-          {/* 오늘 일기 탭 */}
           {selectedTab === "today-diary" && (
             <div className="mt-4 space-y-6 max-h-[480px] overflow-y-auto border rounded p-4 bg-gray-50 pb-8">
               <h2 className="text-center font-semibold text-xl mb-4">오늘 일기</h2>
@@ -854,3 +809,4 @@ export default function Page() {
     </div>
   );
 }
+
