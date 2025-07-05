@@ -362,7 +362,7 @@ export default function Page() {
       const text = data.result as string;
       const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
       return lines.slice(0, 5).map((line) => line.replace(/^[\d\.\-\)\s]+/, "").trim());
-    } catch () {
+    } catch{
       setAiHabitError("추천 중 오류 발생");
       return habitCandidates.slice(0, 3);
     } finally {
