@@ -262,7 +262,7 @@ export default function Page() {
     }
 
     const headers = ["UserID", "Day", "Date", "Task", "Done", "Rating", "IsHabit", "DiarySummary"];
-    const rows = data.map(({ day, start, end, task, done, rating, isHabit }) => {
+    const rows = data.map(({ day, task, done, rating, isHabit }) => {
       const dateStr = formatDiaryDate(day, currentDate, fullDays.indexOf(day));
       return [
         userId,
@@ -326,14 +326,6 @@ export default function Page() {
     ]);
     setNewRoutine({ start: "08:00", end: "09:00", task: "" });
   };
-
-  // 루틴 삭제
-  const handleDeleteRoutine = useCallback((idx: number) => {
-    if (!isLoggedIn) return alert("로그인 후 이용해주세요.");
-    if (!confirm("정말 이 루틴/습관을 삭제하시겠습니까?")) return;
-    setRoutines((prev) => prev.filter((_, i) => i !== idx));
-    setHabitSuggestionIdx(null);
-  }, [isLoggedIn]);
 
   // 완료 토글
   const toggleDone = (idx: number) => {
