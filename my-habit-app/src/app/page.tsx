@@ -17,6 +17,8 @@ type Routine = {
   done: boolean;
   rating: number;
   isHabit?: boolean;
+  description?: string;
+  emoji?: string;
 };
 
 const habitCandidates = ["깊은 숨 2분", "물 한잔", "짧은 산책", "스트레칭"];
@@ -55,7 +57,9 @@ const diaryVisualMap: Record<string, { animal: string; object: string; place: st
   운동: { animal: "사자", object: "아령", place: "헬스장", action: "아령 들기" },
 };
 
-function cleanAndDescribeHabits(rawLines: string[]): { habit: string; description: string }[] {
+function cleanAndDescribeHabits(
+  rawLines: string[],
+): { habit: string; emoji: string; description: string }[] {
   return rawLines
     .map(line => {
       let habit = line.replace(/\*\*/g, "")
@@ -73,10 +77,13 @@ function cleanAndDescribeHabits(rawLines: string[]): { habit: string; descriptio
         }
       }
       // 명사형 설명 랜덤 선택
-      const description = `${emoji} ${descriptionNouns[Math.floor(Math.random() * descriptionNouns.length)]}`;
-      return { habit, description };
+      const description = descriptionNouns[Math.floor(Math.random() * descriptionNouns.length)];
+      return { habit, emoji, description };
     })
-    .filter((item): item is { habit: string; description: string } => !!item && item.habit.length > 0);
+    .filter(
+      (item): item is { habit: string; emoji: string; description: string } =>
+        !!item && item.habit.length > 0,
+    );
 }
 
 function Toast({ message, emoji, onClose }: { message: string; emoji: string; onClose: () => void }) {
@@ -164,7 +171,9 @@ export default function Page() {
     return saved ? JSON.parse(saved) : {};
   });
 
-  const [aiHabitSuggestions, setAiHabitSuggestions] = useState<string[]>([]);
+  const [aiHabitSuggestions, setAiHabitSuggestions] = useState<
+    { habit: string; emoji: string; description: string }[]
+  >([]);
   const [aiHabitLoading, setAiHabitLoading] = useState(false);
   const [aiHabitError, setAiHabitError] = useState<string | null>(null);
 
@@ -276,7 +285,10 @@ export default function Page() {
     }
   };
 
-  async function fetchHabitSuggestions(prevTask: string | null, nextTask: string | null): Promise<string[]> {
+  async function fetchHabitSuggestions(
+    prevTask: string | null,
+    nextTask: string | null,
+  ): Promise<{ habit: string; emoji: string; description: string }[]> {
     const context = [prevTask, nextTask].filter(Boolean).join(", ");
     if (!context) return habitCandidates.slice(0, 3);
 
@@ -302,8 +314,10 @@ export default function Page() {
         .filter((line: string) => line.trim() !== "")
         .map((line: string) => line.replace(/^[\d\.\-\)\s]+/, "").trim());
       const cleaned = cleanAndDescribeHabits(lines);
-      if (cleaned.length === 0) return habitCandidates.slice(0, 3);
-      return cleaned.map(({ habit, description }) => `${habit} - ${description}`);
+      if (cleaned.length === 0) {
+        return habitCandidates.map(h => ({ habit: h, emoji: "🎯", description: "" })).slice(0, 3);
+      }
+      return cleaned;
     } catch {
       setAiHabitError("추천 중 오류 발생");
       return habitCandidates.slice(0, 3);
@@ -325,14 +339,18 @@ export default function Page() {
     setHabitSuggestionIdx(idx);
   };
 
-  const addHabitBetween = (idx: number, habit: string) => {
+  const addHabitBetween = (
+    idx: number,
+    suggestion: { habit: string; emoji: string; description: string },
+  ) => {
     if (!isLoggedIn) return alert("로그인 후 이용해주세요.");
-    const cleanedHabit = habit.replace(/\(\s*습관\s*\)-?/, "").trim();
     const habitRoutine: Routine = {
       day: selectedDay,
       start: "",
       end: "",
-      task: cleanedHabit,
+      task: suggestion.habit,
+      description: suggestion.description,
+      emoji: suggestion.emoji,
       done: false,
       rating: 0,
       isHabit: true,
@@ -345,7 +363,21 @@ export default function Page() {
 
   const filteredRoutines = routines.filter(() => true);
 
-  const completionData = fullDays.map(day => {
+  const routineCompletionData = fullDays.map(day => {
+    const filteredDay = filteredRoutines.filter(r => r.day === day && !r.isHabit);
+    const total = filteredDay.length;
+    const done = filteredDay.filter(r => r.done).length;
+    return { name: day, Completion: total ? Math.round((done / total) * 100) : 0 };
+  });
+
+  const habitCompletionData = fullDays.map(day => {
+    const filteredDay = filteredRoutines.filter(r => r.day === day && r.isHabit);
+    const total = filteredDay.length;
+    const done = filteredDay.filter(r => r.done).length;
+    return { name: day, Completion: total ? Math.round((done / total) * 100) : 0 };
+  });
+
+  const overallCompletionData = fullDays.map(day => {
     const filteredDay = filteredRoutines.filter(r => r.day === day);
     const total = filteredDay.length;
     const done = filteredDay.filter(r => r.done).length;
@@ -429,8 +461,17 @@ export default function Page() {
       return;
     }
 
-    const headers = ["UserID", "Day", "Date", "Task", "Done", "Rating", "IsHabit"];
-    const rows = routines.map(({ day, task, done, rating, isHabit }) => {
+    const headers = [
+      "UserID",
+      "Day",
+      "Date",
+      "Task",
+      "Done",
+      "Rating",
+      "IsHabit",
+      "Description",
+    ];
+    const rows = routines.map(({ day, task, done, rating, isHabit, description }) => {
       const dateStr = formatDiaryDate(day, currentDate, fullDays.indexOf(day));
       return [
         userId,
@@ -440,11 +481,33 @@ export default function Page() {
         done ? "Yes" : "No",
         rating.toString(),
         isHabit ? "Yes" : "No",
+        description ? `"${description.replace(/"/g, '""')}"` : "",
       ];
     });
 
     const attendanceHeaders = ["Date", "AttendanceCount"];
     const attendanceRows = attendanceData.map(({ date, count }) => [date, count.toString()]);
+
+    const routineTotal = routines.filter(r => !r.isHabit).length;
+    const routineDone = routines.filter(r => !r.isHabit && r.done).length;
+    const habitTotal = routines.filter(r => r.isHabit).length;
+    const habitDone = routines.filter(r => r.isHabit && r.done).length;
+    const overallTotal = routines.length;
+    const overallDone = routines.filter(r => r.done).length;
+    const avgSatisfaction = routines.filter(r => r.done).length
+      ? Math.round(
+          routines.filter(r => r.done).reduce((a, c) => a + c.rating, 0) /
+            routines.filter(r => r.done).length,
+        )
+      : 0;
+
+    const summaryRows = [
+      [],
+      ["RoutineCompletion", `${routineTotal ? Math.round((routineDone / routineTotal) * 100) : 0}`],
+      ["HabitCompletion", `${habitTotal ? Math.round((habitDone / habitTotal) * 100) : 0}`],
+      ["OverallCompletion", `${overallTotal ? Math.round((overallDone / overallTotal) * 100) : 0}`],
+      ["AverageSatisfaction", avgSatisfaction.toString()],
+    ];
 
     const csvContent = [
       headers.join(","),
@@ -452,6 +515,7 @@ export default function Page() {
       "",
       attendanceHeaders.join(","),
       ...attendanceRows.map(r => r.join(",")),
+      ...summaryRows.map(r => r.join(",")),
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -486,27 +550,22 @@ export default function Page() {
             onChange={e => setUserPw(e.target.value)}
             className="border rounded px-3 py-2 w-full"
           />
-          <div className="flex justify-between items-center mt-1">
-            <button
-              onClick={() => {
-                setAdminModeActive(!adminModeActive);
-                setLoginError("");
-                setUserId("");
-                setUserPw("");
-                setUserAddError("");
-              }}
-              className="text-sm text-blue-600 hover:underline"
-            >
-              {adminModeActive ? "일반 로그인 모드로 전환" : "관리자 모드"}
-            </button>
-            <button
-              onClick={handleLogin}
-              className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
-            >
-              로그인
-            </button>
-          </div>
           {loginError && <p className="text-red-600">{loginError}</p>}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={adminModeActive}
+              onChange={e => setAdminModeActive(e.target.checked)}
+              id="adminMode"
+            />
+            <label htmlFor="adminMode" className="text-sm">관리자 모드</label>
+          </div>
+          <button
+            onClick={handleLogin}
+            className="rounded-full bg-black text-white py-2 w-full font-semibold hover:bg-gray-800 transition"
+          >
+            로그인
+          </button>
           {adminModeActive && (
             <div className="mt-4 border rounded p-4 bg-gray-50">
               <h3 className="font-semibold mb-2">사용자 등록 (관리자 전용)</h3>
@@ -650,12 +709,12 @@ export default function Page() {
                       .filter(r => r.day === selectedDay)
                       .map((routine, idx) => {
                         const displayTask = routine.isHabit
-                          ? routine.task.replace(/\(\s*습관\s*\)-?/, "")
+                          ? `${routine.emoji ?? ""} ${routine.task} - ${routine.description ?? ""}`.trim()
                           : routine.task;
 
                         // 습관 항목만 스카이 블루 배경 적용
                         const backgroundStyle = routine.isHabit
-                          ? { backgroundColor: "#e3f2fd", padding: "6px 12px", borderRadius: "9999px" }
+                          ? { backgroundColor: "#e9ecef", padding: "6px 12px", borderRadius: "9999px" }
                           : {};
 
                         return (
@@ -714,7 +773,10 @@ export default function Page() {
                           <p className="text-red-600">{aiHabitError}</p>
                         ) : (
                           <div className="flex flex-wrap gap-2">
-                            {(aiHabitSuggestions.length > 0 ? aiHabitSuggestions : habitCandidates.slice(0, 3)).map((habit, i) => (
+                            {(aiHabitSuggestions.length > 0
+                              ? aiHabitSuggestions
+                              : habitCandidates.map(h => ({ habit: h, emoji: "🎯", description: "" })).slice(0, 3)
+                            ).map((habit, i) => (
                               <button
                                 key={i}
                                 onClick={() => {
@@ -725,7 +787,7 @@ export default function Page() {
                                 }}
                                 className="rounded-full bg-gray-300 px-3 py-1 hover:bg-gray-400"
                               >
-                                {habit}
+                                {habit.emoji} {habit.habit}
                               </button>
                             ))}
                           </div>
@@ -761,10 +823,36 @@ export default function Page() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <h3 className="font-semibold mb-2 cursor-pointer" onClick={() => {/* TODO: 기간 필터 변경 */}}>
-                    완료율 (%)
+                    루틴 완료율 (%)
                   </h3>
                   <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={completionData}>
+                    <BarChart data={routineCompletionData}>
+                      <XAxis dataKey="name" />
+                      <YAxis domain={[0, 100]} />
+                      <Tooltip />
+                      <Bar dataKey="Completion" fill="#0f172a" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2 cursor-pointer" onClick={() => {/* TODO: 기간 필터 변경 */}}>
+                    습관 완료율 (%)
+                  </h3>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={habitCompletionData}>
+                      <XAxis dataKey="name" />
+                      <YAxis domain={[0, 100]} />
+                      <Tooltip />
+                      <Bar dataKey="Completion" fill="#0f172a" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2 cursor-pointer" onClick={() => {/* TODO: 기간 필터 변경 */}}>
+                    전체 완료율 (%)
+                  </h3>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={overallCompletionData}>
                       <XAxis dataKey="name" />
                       <YAxis domain={[0, 100]} />
                       <Tooltip />
@@ -841,3 +929,4 @@ export default function Page() {
     </div>
   );
 }
+
