@@ -699,8 +699,13 @@ export default function Page() {
             </button>
             <button
               onClick={() => setSelectedTab("tracker")}
-              className={`rounded-full px-5 py-2 font-semibold transition ${selectedTab === "tracker" && (
-          <div className="mt-6 space-y-8">
+              className={`rounded-full px-5 py-2 font-semibold transition ${
+                selectedTab === "tracker" ? "bg-black text-white" : "bg-gray-300 text-black"
+              }`}
+            >
+              트래커
+            </button>
+
             {/* 출석률 캘린더 */}
             <div>
               <h2 className="text-lg font-semibold text-center mb-2">주간 출석률 (최근 3개월)</h2>
