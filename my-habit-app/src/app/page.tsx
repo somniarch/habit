@@ -136,20 +136,6 @@ function cleanAndDescribeHabits(
 
 
 
-      // 필터링 기준
-      if (
-        NON_HABIT_KEYWORDS.some(word => shortHabit.includes(word)) ||
-        !ACTION_VERBS.some(verb => shortHabit.includes(verb))
-      ) return null;
-
-      return { habit: `${emoji} ${shortHabit}`, emoji };
-    })
-    .filter(
-      (item): item is { habit: string; emoji: string } =>
-        !!item && item.habit.length > 0,
-    );
-}
-
 function Toast({ message, emoji, onClose }: { message: string; emoji: string; onClose: () => void }) {
   useEffect(() => {
     const timer = setTimeout(() => onClose(), 2500);
