@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -34,17 +34,25 @@ const habitEmojis: Record<string, string> = {
   휴식: "😌",
 };
 
+// 그림일기 시각화 매핑
+const diaryVisualMap: Record<string, { animal: string; object: string; place: string; action: string }> = {
+  산책: { animal: "강아지", object: "리드줄", place: "공원", action: "걷는 모습" },
+  독서: { animal: "고양이", object: "책", place: "방", action: "앉아 책 읽기" },
+  스트레칭: { animal: "토끼", object: "요가매트", place: "거실", action: "스트레칭 포즈" },
+  물: { animal: "곰", object: "물컵", place: "주방", action: "물 마시는 동작" },
+  명상: { animal: "부엉이", object: "방석", place: "조용한 방", action: "눈 감고 명상" },
+  운동: { animal: "사자", object: "아령", place: "헬스장", action: "아령 들기" },
+  // 필요시 추가
+};
+
 function cleanAndDescribeHabits(rawLines: string[]): { habit: string; description: string }[] {
   return rawLines
     .map(line => {
-      // ** 제거 및 (습관)- 등 불필요 문자 제거
-      let habit = line.replace(/\*\*/g, "").trim();
-      habit = habit.replace(/^(\d+분?|[0-9]+[가-힣]+)?\s*\(?습관\)?-?\s*/, "").trim();
-
-      if (habit.length > 30) habit = habit.slice(0, 27) + "...";
-
-      const description = "집중과 건강에 도움이 되는 습관";
-
+      let habit = line.replace(/\*\*/g, "")
+        .replace(/\[\(?\s*습관\s*\)?-?\]/g, "")
+        .replace(/^\(?\s*습관\s*\)?-?/, "")
+        .trim();
+      if (!habit || habit.length > 20) return null;
       let emoji = "🎯";
       for (const key in habitEmojis) {
         if (habit.includes(key)) {
@@ -52,17 +60,17 @@ function cleanAndDescribeHabits(rawLines: string[]): { habit: string; descriptio
           break;
         }
       }
-      return { habit, description: `${emoji} ${description}` };
+      const description = `${emoji} ${habit}로 집중과 건강을 챙겨보세요.`;
+      return { habit, description: description.slice(0, 30) };
     })
-    .filter(({ habit }) => habit.length > 0);
+    .filter((item): item is { habit: string; description: string } => !!item && item.habit.length > 0);
 }
 
 function Toast({ message, emoji, onClose }: { message: string; emoji: string; onClose: () => void }) {
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => onClose(), 2500);
     return () => clearTimeout(timer);
   }, [onClose]);
-
   return (
     <div className="fixed bottom-8 right-8 bg-black text-white px-4 py-2 rounded shadow-lg flex items-center gap-2 z-50">
       <span>{emoji}</span>
@@ -95,7 +103,17 @@ function formatMonthDay(date: Date, dayIndex: number) {
   return `${mm}/${dd}`;
 }
 
+// 그림일기 프롬프트 생성 함수
+function getDiaryPrompt(routine: Routine) {
+  const keys = Object.keys(diaryVisualMap);
+  const key = keys.find(k => routine.task.includes(k));
+  if (!key) return null;
+  const { animal, object, place, action } = diaryVisualMap[key];
+  return `귀여운 그림일기 스타일로, ${place}에서 ${animal}가(이) ${object}를 사용해 ${action}을 하는 장면. 밝고 따뜻한 색감, 동물·물건·장소·행동이 명확하게 보이도록.`;
+}
+
 export default function Page() {
+  // 로그인/관리자
   const [userId, setUserId] = useState("");
   const [userPw, setUserPw] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -132,6 +150,11 @@ export default function Page() {
   const [aiHabitSuggestions, setAiHabitSuggestions] = useState<string[]>([]);
   const [aiHabitLoading, setAiHabitLoading] = useState(false);
   const [aiHabitError, setAiHabitError] = useState<string | null>(null);
+
+  // 그림일기 자동 생성 관련 상태
+  const [diaryImageUrl, setDiaryImageUrl] = useState<string | null>(null);
+  const [diaryLoading, setDiaryLoading] = useState(false);
+  const [diaryError, setDiaryError] = useState<string | null>(null);
 
   // 유저 목록 가져오기
   const getRegisteredUsers = (): { id: string; pw: string }[] => {
@@ -330,7 +353,7 @@ export default function Page() {
   });
 
   // 출석률 계산 (최근 3개월 날짜별 완료 갯수 기반)
-  const attendanceData = React.useMemo(() => {
+  const attendanceData = useMemo(() => {
     const data: { date: string; count: number }[] = [];
     const startDate = new Date(currentDate);
     startDate.setMonth(startDate.getMonth() - 3);
@@ -344,6 +367,58 @@ export default function Page() {
     }
     return data;
   }, [routines, currentDate]);
+
+  // 그림일기: 오늘 완료+만족도 높은 루틴/습관 추출
+  const today = new Date().getDay();
+  const todayRoutines = useMemo(
+    () => routines.filter(r => r.day === fullDays[today === 0 ? 6 : today - 1] && r.done),
+    [routines]
+  );
+  const sortedBySatisfaction = useMemo(
+    () => [...todayRoutines].sort((a, b) => b.rating - a.rating),
+    [todayRoutines]
+  );
+  const topRoutine = sortedBySatisfaction[0];
+
+  // 그림일기 이미지 자동 생성
+  useEffect(() => {
+    let ignore = false;
+    async function fetchDiaryImage() {
+      if (!topRoutine) {
+        setDiaryImageUrl(null);
+        return;
+      }
+      const prompt = getDiaryPrompt(topRoutine);
+      if (!prompt) {
+        setDiaryImageUrl(null);
+        setDiaryError("대표 행동을 그림으로 표현할 수 없습니다.");
+        return;
+      }
+      setDiaryLoading(true);
+      setDiaryError(null);
+      try {
+        const res = await fetch("/openai/image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.image_url) {
+          setDiaryError("그림 생성 실패");
+          setDiaryImageUrl(null);
+        } else {
+          if (!ignore) setDiaryImageUrl(data.image_url);
+        }
+      } catch {
+        setDiaryError("OpenAI 그림 생성 오류");
+        setDiaryImageUrl(null);
+      } finally {
+        setDiaryLoading(false);
+      }
+    }
+    fetchDiaryImage();
+    return () => { ignore = true; };
+  }, [topRoutine]);
 
   // CSV 다운로드 (루틴 + 출석률 포함)
   function downloadCSV() {
@@ -730,12 +805,45 @@ export default function Page() {
 
           {selectedTab === "today-diary" && (
             <div className="mt-4 space-y-6 max-h-[480px] overflow-y-auto border rounded p-4 bg-gray-50 pb-8">
-              <h2 className="text-center font-semibold text-xl mb-4">오늘 일기</h2>
-              {/* 오늘 일기 렌더링 부분 (생략 가능) */}
+              <h2 className="text-center font-semibold text-xl mb-4">오늘 그림일기</h2>
+              {topRoutine && (
+                <div className="flex flex-col items-center gap-2">
+                  {diaryLoading && <div className="text-gray-500 py-8">그림 생성 중...</div>}
+                  {diaryError && <div className="text-red-600">{diaryError}</div>}
+                  {diaryImageUrl && (
+                    <Image
+                      src={diaryImageUrl}
+                      alt="오늘의 그림일기"
+                      width={320}
+                      height={240}
+                      className="rounded shadow"
+                      style={{ objectFit: "contain" }}
+                    />
+                  )}
+                  <div className="text-center text-lg font-semibold mt-2">
+                    {topRoutine.task} (만족도 {topRoutine.rating})
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {getDiaryPrompt(topRoutine)}
+                  </div>
+                </div>
+              )}
+              {!topRoutine && (
+                <div className="text-center text-gray-400 py-8">
+                  오늘 완료한 루틴/습관이 없습니다.<br />체크 후 그림일기를 확인하세요!
+                </div>
+              )}
             </div>
           )}
         </>
       )}
+      <style jsx global>{`
+        .color-empty { fill: #eee; }
+        .color-scale-1 { fill: #c6e48b; }
+        .color-scale-2 { fill: #7bc96f; }
+        .color-scale-3 { fill: #239a3b; }
+        .color-scale-4 { fill: #196127; }
+      `}</style>
     </div>
   );
 }
