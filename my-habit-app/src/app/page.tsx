@@ -9,6 +9,21 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautif
 import CalendarHeatmap from "react-calendar-heatmap";
 import "react-calendar-heatmap/dist/styles.css";
 
+async function fetchHabitSuggestions(prevTask, nextTask) {
+  const res = await fetch("/openai/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prevTask, nextTask }),
+  });
+
+  const data = await res.json();
+
+  const lines = (data.result || [])
+    .map((l: string) => l.trim())
+    .filter((l: string) => /^\d+분\s?\S{1,8}$/.test(l));
+
+  return lines.map(habit => ({ habit, emoji: "" }));
+}
 type Routine = {
   day: string;
   start: string;
