@@ -59,7 +59,7 @@ const diaryVisualMap: Record<string, { animal: string; object: string; place: st
 
 function cleanAndDescribeHabits(
   rawLines: string[],
-): { habit: string; emoji: string; description: string }[] {
+): { habit: string; emoji: string }[] {
   return rawLines
     .map(line => {
       let habit = line.replace(/\*\*/g, "")
@@ -69,22 +69,29 @@ function cleanAndDescribeHabits(
       if (!habit || habit.length > 20) return null;
       if (NON_HABIT_KEYWORDS.some(word => habit.includes(word))) return null;
       if (!ACTION_VERBS.some(verb => habit.includes(verb))) return null;
+      // {N}분 {행동}만 추출
+      // 예: "2분 깊은 숨쉬기" → "2분 숨쉬기"
+      const match = habit.match(/(\d+)분\s*([가-힣a-zA-Z]+)/);
+      let shortHabit = habit;
+      if (match) {
+        shortHabit = `${match[1]}분 ${match[2]}`;
+      }
+      if (shortHabit.length > 10) shortHabit = shortHabit.slice(0, 10);
       let emoji = "🎯";
       for (const key in habitEmojis) {
-        if (habit.includes(key)) {
+        if (shortHabit.includes(key)) {
           emoji = habitEmojis[key];
           break;
         }
       }
-      // 명사형 설명 랜덤 선택
-      const description = descriptionNouns[Math.floor(Math.random() * descriptionNouns.length)];
-      return { habit, emoji, description };
+      return { habit: shortHabit, emoji };
     })
     .filter(
-      (item): item is { habit: string; emoji: string; description: string } =>
+      (item): item is { habit: string; emoji: string } =>
         !!item && item.habit.length > 0,
     );
 }
+
 
 function Toast({ message, emoji, onClose }: { message: string; emoji: string; onClose: () => void }) {
   useEffect(() => {
@@ -340,26 +347,26 @@ export default function Page() {
   };
 
   const addHabitBetween = (
-    idx: number,
-    suggestion: { habit: string; emoji: string; description: string },
-  ) => {
-    if (!isLoggedIn) return alert("로그인 후 이용해주세요.");
-    const habitRoutine: Routine = {
-      day: selectedDay,
-      start: "",
-      end: "",
-      task: suggestion.habit,
-      description: suggestion.description,
-      emoji: suggestion.emoji,
-      done: false,
-      rating: 0,
-      isHabit: true,
-    };
-    const copy = [...routines];
-    copy.splice(idx + 1, 0, habitRoutine);
-    setRoutines(copy);
-    setHabitSuggestionIdx(null);
+  idx: number,
+  suggestion: { habit: string; emoji: string },
+) => {
+  if (!isLoggedIn) return alert("로그인 후 이용해주세요.");
+  const habitRoutine: Routine = {
+    day: selectedDay,
+    start: "",
+    end: "",
+    task: suggestion.habit,
+    emoji: suggestion.emoji,
+    done: false,
+    rating: 0,
+    isHabit: true,
   };
+  const copy = [...routines];
+  copy.splice(idx + 1, 0, habitRoutine);
+  setRoutines(copy);
+  setHabitSuggestionIdx(null);
+};
+
 
   const filteredRoutines = routines.filter(() => true);
 
@@ -767,29 +774,23 @@ export default function Page() {
                         >
                           ✕
                         </button>
-                        {aiHabitLoading ? (
-                          <p>추천 생성 중...</p>
-                        ) : aiHabitError ? (
-                          <p className="text-red-600">{aiHabitError}</p>
-                        ) : (
-                          <div className="flex flex-wrap gap-2">
-                            {(aiHabitSuggestions.length > 0
-                              ? aiHabitSuggestions
-                              : habitCandidates.map(h => ({ habit: h, emoji: "🎯", description: "" })).slice(0, 3)
-                            ).map((habit, i) => (
-                              <button
-                                key={i}
-                                onClick={() => {
-                                  addHabitBetween(habitSuggestionIdx, habit);
-                                  setHabitSuggestionIdx(null);
-                                  setAiHabitSuggestions([]);
-                                  setAiHabitError(null);
-                                }}
-                                className="rounded-full bg-gray-300 px-3 py-1 hover:bg-gray-400"
-                              >
-                                {habit.emoji} {habit.habit}
-                              </button>
-                            ))}
+                        {aiHabitSuggestions.length > 0
+                          ? aiHabitSuggestions
+                          : habitCandidates.map(h => ({ habit: h, emoji: "🎯" })).slice(0, 3)
+                        ).map((habit, i) => (
+                          <button
+                            key={i}
+                            onClick={() => {
+                              addHabitBetween(habitSuggestionIdx, habit);
+                              setHabitSuggestionIdx(null);
+                              setAiHabitSuggestions([]);
+                              setAiHabitError(null);
+                            }}
+                            className="rounded-full bg-gray-300 px-3 py-1 hover:bg-gray-400"
+                          >
+                            {habit.emoji} {habit.habit}
+                          </button>
+                        ))}
                           </div>
                         )}
                       </div>
