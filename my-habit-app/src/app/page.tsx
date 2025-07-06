@@ -9,7 +9,8 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautif
 import CalendarHeatmap from "react-calendar-heatmap";
 import "react-calendar-heatmap/dist/styles.css";
 
-  async function fetchHabitsFromAPI(prompt: string): Promise<{ habit: string; emoji: string }[]> {
+// ✅ 이 함수는 컴포넌트 밖에서 선언해야 오류가 안 납니다.
+async function fetchHabitsFromAPI(prompt: string): Promise<{ habit: string; emoji: string }[]> {
   try {
     const res = await fetch("/openai/chat", {
       method: "POST",
@@ -29,13 +30,14 @@ import "react-calendar-heatmap/dist/styles.css";
     }
 
     return habits
-      .filter((h) => /^\d+분\s?\S{1,8}$/.test(h)) // 3분 스트레칭 형태만 허용
+      .filter((h) => /^\d+분\s?\S{1,8}$/.test(h)) // 예: 3분 스트레칭
       .map((habit) => ({ habit, emoji: "" }));
   } catch (e) {
     console.error("API 요청 실패", e);
     return [];
   }
 }
+
 
 
 
