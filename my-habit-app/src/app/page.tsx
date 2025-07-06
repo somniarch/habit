@@ -110,7 +110,7 @@ function formatMonthDay(date: Date, dayIndex: number) {
 }
 
 // 습관 추천 텍스트 정제 및 이모지 + 설명 붙이기
-function cleanAndDescribeHabits(rawLines: string[]): { habit: string; description: string }[] {
+function cleanAndDescribeHabits(rawLines: string[]): {habit: string; description: string}[] {
   return rawLines
     .map(line => {
       // ** 제거 및 앞 숫자/분 제거
