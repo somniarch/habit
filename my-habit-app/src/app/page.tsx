@@ -9,27 +9,34 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautif
 import CalendarHeatmap from "react-calendar-heatmap";
 import "react-calendar-heatmap/dist/styles.css";
 
-  const res = await fetch("/openai/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
-  });
-
-  const data = await res.json();
-
-  let habits: string[] = [];
-
+  async function fetchHabitsFromAPI(prompt: string): Promise<{ habit: string; emoji: string }[]> {
   try {
-    habits = JSON.parse(data.result);
+    const res = await fetch("/openai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt }),
+    });
+
+    const data = await res.json();
+
+    let habits: string[] = [];
+
+    try {
+      habits = JSON.parse(data.result);
+    } catch (e) {
+      console.error("OpenAI JSON 파싱 실패", e);
+      return [];
+    }
+
+    return habits
+      .filter((h) => /^\d+분\s?\S{1,8}$/.test(h)) // 3분 스트레칭 형태만 허용
+      .map((habit) => ({ habit, emoji: "" }));
   } catch (e) {
-    console.error("OpenAI JSON 파싱 실패", e);
+    console.error("API 요청 실패", e);
     return [];
   }
-
-  return habits
-    .filter((h) => /^\d+분\s?\S{1,8}$/.test(h)) // 3분 스트레칭 형태만 허용
-    .map((habit) => ({ habit, emoji: "" }));
 }
+
 
 
 type Routine = {
