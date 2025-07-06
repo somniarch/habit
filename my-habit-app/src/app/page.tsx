@@ -10,27 +10,52 @@ import CalendarHeatmap from "react-calendar-heatmap";
 import "react-calendar-heatmap/dist/styles.css";
 
 async function fetchHabitSuggestions(prevTask, nextTask) {
+  const context = [prevTask, nextTask].filter(Boolean).join(", ");
+
+  const prompt = `
+앞뒤 활동: ${context}
+
+당신은 웰빙 전문가입니다.  
+다음 조건을 **정확히 지켜서** "습관 추천"을 최소 3개, 최대 5개 출력해 주세요.
+
+### 출력 조건
+- 각 항목은 아래 형식으로만:
+  "3분 스트레칭"
+  "2분 걷기"
+- 앞 숫자는 1~5분 사이
+- 행동은 구체적이고 한국어 명사형 (예: 스트레칭, 숨쉬기, 걷기, 정리 등)
+- 총 3~5개
+- 길이는 **10자 이내**
+- 설명 ❌ 금지
+- 마크다운 ❌ 금지
+- 이모지 ❌ 금지
+- 리스트 기호 ❌ 금지
+- **JSON 배열로만 출력**
+  예: ["3분 스트레칭", "2분 걷기", "1분 호흡"]
+`;
+
   const res = await fetch("/openai/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prevTask, nextTask }),
+    body: JSON.stringify({ prompt }),
   });
 
   const data = await res.json();
 
-  const lines = (data.result || [])
-    .split(/\r?\n/)
-    .map((line: string) =>
-      line
-        .trim()
-        .replace(/^[\*\-\d\.\)\s]*/g, '') // 앞번호, *, -, 공백 제거
-        .replace(/[:\-].*$/, '')          // 콜론(:) 또는 하이픈(-) 뒤 설명 제거
-        .trim()
-    )
-    .filter((l: string) => /^\d+분\s?\S{1,8}$/.test(l)); // 형식 필터
+  let habits: string[] = [];
 
-  return lines.map(habit => ({ habit, emoji: "" }));
+  try {
+    habits = JSON.parse(data.result);
+  } catch (e) {
+    console.error("OpenAI JSON 파싱 실패", e);
+    return [];
+  }
+
+  return habits
+    .filter((h) => /^\d+분\s?\S{1,8}$/.test(h)) // 3분 스트레칭 형태만 허용
+    .map((habit) => ({ habit, emoji: "" }));
 }
+
 
 type Routine = {
   day: string;
