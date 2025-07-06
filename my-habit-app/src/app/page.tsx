@@ -41,6 +41,11 @@ const ACTION_VERBS = [
   "하기", "마시기", "걷기", "읽기", "스트레칭", "숨쉬기", "운동", "산책", "명상", "정리하기", "작성하기", "청소하기", "씻기", "준비하기"
 ];
 
+// 명사형 설명 후보
+const descriptionNouns = [
+  "집중력 향상", "긴장 완화", "에너지 충전", "마음 안정", "스트레스 해소", "기분 전환", "건강 증진", "활력 회복", "휴식", "상쾌함"
+];
+
 const diaryVisualMap: Record<string, { animal: string; object: string; place: string; action: string }> = {
   산책: { animal: "강아지", object: "리드줄", place: "공원", action: "걷는 모습" },
   독서: { animal: "고양이", object: "책", place: "방", action: "앉아 책 읽기" },
@@ -67,8 +72,9 @@ function cleanAndDescribeHabits(rawLines: string[]): { habit: string; descriptio
           break;
         }
       }
-      const description = `${emoji} ${habit}로 집중과 건강을 챙겨보세요.`;
-      return { habit, description: description.slice(0, 30) };
+      // 명사형 설명 랜덤 선택
+      const description = `${emoji} ${descriptionNouns[Math.floor(Math.random() * descriptionNouns.length)]}`;
+      return { habit, description };
     })
     .filter((item): item is { habit: string; description: string } => !!item && item.habit.length > 0);
 }
@@ -110,12 +116,18 @@ function formatMonthDay(date: Date, dayIndex: number) {
   return `${mm}/${dd}`;
 }
 
+// 고도화된 그림일기 프롬프트
 function getDiaryPrompt(routine: Routine) {
   const keys = Object.keys(diaryVisualMap);
   const key = keys.find(k => routine.task.includes(k));
   if (!key) return null;
   const { animal, object, place, action } = diaryVisualMap[key];
-  return `귀여운 그림일기 스타일로, ${place}에서 ${animal}가(이) ${object}를 사용해 ${action}을 하는 장면. 밝고 따뜻한 색감, 동물·물건·장소·행동이 명확하게 보이도록.`;
+  return (
+    `밝고 따뜻한 색감의 귀여운 그림일기 스타일. ` +
+    `${place}에서 ${animal}가(이) ${object}를 사용해 ${action}을 하는 장면. ` +
+    `동물의 표정과 ${object}가 잘 보이도록, 행동하는 순간을 강조해서 그려줘. ` +
+    `배경은 단순하게, 주요 소품과 행동이 명확하게 드러나게 해줘.`
+  );
 }
 
 export default function Page() {
@@ -641,8 +653,9 @@ export default function Page() {
                           ? routine.task.replace(/\(\s*습관\s*\)-?/, "")
                           : routine.task;
 
+                        // 습관 항목만 스카이 블루 배경 적용
                         const backgroundStyle = routine.isHabit
-                          ? { backgroundColor: "#e9ecef", padding: "6px 12px", borderRadius: "9999px" }
+                          ? { backgroundColor: "#e3f2fd", padding: "6px 12px", borderRadius: "9999px" }
                           : {};
 
                         return (
@@ -653,14 +666,14 @@ export default function Page() {
                                 {...provided.dragHandleProps}
                                 ref={provided.innerRef}
                                 className="border rounded p-4 flex justify-between items-center mt-2 cursor-pointer"
-                                style={provided.draggableProps.style}
+                                style={{ ...provided.draggableProps.style, ...backgroundStyle }}
                                 onClick={(e) => {
                                   if ((e.target as HTMLElement).tagName !== "INPUT") {
                                     handleRoutineDeleteConfirm(idx);
                                   }
                                 }}
                               >
-                                <div style={backgroundStyle} className="flex items-center gap-2 font-semibold">
+                                <div className="flex items-center gap-2 font-semibold">
                                   <span>[{routine.start} - {routine.end}]</span>
                                   <span>{displayTask}</span>
                                 </div>
