@@ -49,7 +49,7 @@ function getEncouragementAndHabit(task: string) {
 }
 
 function Toast({ message, emoji, onClose }: { message: string; emoji: string; onClose: () => void }) {
-  useEffect(() => {
+  React.useEffect(() => {
     const timer = setTimeout(() => onClose(), 2500);
     return () => clearTimeout(timer);
   }, [onClose]);
@@ -93,17 +93,28 @@ function formatMonthDay(date: Date, dayIndex: number) {
 }
 
 export default function Page() {
+  // 로그인, 관리자 모드 상태
   const [userId, setUserId] = useState("");
   const [userPw, setUserPw] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminModeActive, setAdminModeActive] = useState(false);
   const [toast, setToast] = useState<{ message: string; emoji: string } | null>(null);
   const [loginError, setLoginError] = useState("");
-  const [adminModeActive, setAdminModeActive] = useState(false);
 
+  // 관리자 고정 계정
   const adminId = "3333";
   const adminPw = "8888";
+
+  // 사용자 데이터 localStorage 키
   const storedUsersKey = "registeredUsers";
+
+  // 관리자 페이지 상태
+  const [newUserId, setNewUserId] = useState("");
+  const [newUserPw, setNewUserPw] = useState("");
+  const [userAddError, setUserAddError] = useState("");
+
+  // 로그인 후 루틴, 다이어리 관련 상태 (userId 의존)
   const routinesKey = `routines_${userId}`;
   const diaryLogsKey = `todayDiaryLogs_${userId}`;
 
@@ -133,6 +144,7 @@ export default function Page() {
   const [aiHabitLoading, setAiHabitLoading] = useState(false);
   const [aiHabitError, setAiHabitError] = useState<string | null>(null);
 
+  // 사용자 데이터 불러오기/저장
   const getRegisteredUsers = (): { id: string; pw: string }[] => {
     if (typeof window === "undefined") return [];
     const json = localStorage.getItem(storedUsersKey);
@@ -148,10 +160,7 @@ export default function Page() {
     localStorage.setItem(storedUsersKey, JSON.stringify(users));
   };
 
-  const [newUserId, setNewUserId] = useState("");
-  const [newUserPw, setNewUserPw] = useState("");
-  const [userAddError, setUserAddError] = useState("");
-
+  // 로그인 처리
   const handleLogin = () => {
     if (!userId.trim() || !userPw.trim()) {
       setLoginError("아이디와 비밀번호를 모두 입력해주세요.");
@@ -182,6 +191,7 @@ export default function Page() {
     }
   };
 
+  // 로그아웃 처리
   const handleLogout = () => {
     setIsLoggedIn(false);
     setUserId("");
@@ -191,6 +201,7 @@ export default function Page() {
     setToast({ emoji: "👋", message: "로그아웃 되었습니다." });
   };
 
+  // 사용자 추가 (관리자 전용)
   const handleAddUser = () => {
     if (!newUserId.trim() || !newUserPw.trim()) {
       setUserAddError("아이디와 비밀번호를 모두 입력해주세요.");
@@ -209,6 +220,15 @@ export default function Page() {
     setToast({ emoji: "✅", message: `사용자 ${newUserId} 등록 완료!` });
   };
 
+  // 사용자 삭제 (관리자 전용)
+  const handleRemoveUser = (idToRemove: string) => {
+    const users = getRegisteredUsers();
+    const filtered = users.filter(u => u.id !== idToRemove);
+    saveRegisteredUsers(filtered);
+    setToast({ emoji: "🗑️", message: `사용자 ${idToRemove} 삭제됨` });
+  };
+
+  // localStorage 저장: routines, diaryLogs (userId 의존)
   useEffect(() => {
     if (userId) {
       localStorage.setItem(routinesKey, JSON.stringify(routines));
@@ -220,6 +240,7 @@ export default function Page() {
     }
   }, [todayDiaryLogs, diaryLogsKey, userId]);
 
+  // 통계용 데이터 생성
   const completionData = fullDays.map((day) => {
     const total = routines.filter((r) => r.day === day).length;
     const done = routines.filter((r) => r.day === day && r.done).length;
@@ -233,6 +254,7 @@ export default function Page() {
     return { name: day, Satisfaction: avg };
   });
 
+  // CSV 다운로드 함수
   function downloadCSV(data: Routine[]) {
     if (data.length === 0) return alert("내보낼 데이터가 없습니다.");
 
@@ -362,7 +384,7 @@ export default function Page() {
       const text = data.result as string;
       const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
       return lines.slice(0, 5).map((line) => line.replace(/^[\d\.\-\)\s]+/, "").trim());
-    } catch{
+    } catch {
       setAiHabitError("추천 중 오류 발생");
       return habitCandidates.slice(0, 3);
     } finally {
@@ -457,354 +479,384 @@ export default function Page() {
     }
   }, [selectedTab, todayDiaryLogs, routines, generateDiaryAI]);
 
+  // 로그인 전 화면
+  if (!isLoggedIn) {
+    return (
+      <div className="max-w-sm mx-auto p-6 mt-20 border rounded shadow space-y-4 font-sans">
+        <h2 className="text-xl font-semibold text-center">로그인 해주세요</h2>
+        <input
+          type="text"
+          placeholder="아이디"
+          value={userId}
+          onChange={(e) => setUserId(e.target.value)}
+          className="border rounded px-3 py-2 w-full"
+        />
+        <input
+          type="password"
+          placeholder="비밀번호"
+          value={userPw}
+          onChange={(e) => setUserPw(e.target.value)}
+          className="border rounded px-3 py-2 w-full"
+        />
+
+        <div className="flex justify-between items-center mt-1">
+          <button
+            onClick={() => {
+              setAdminModeActive(!adminModeActive);
+              setLoginError("");
+              setUserId("");
+              setUserPw("");
+              setUserAddError("");
+            }}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            {adminModeActive ? "일반 로그인 모드로 전환" : "관리자 모드"}
+          </button>
+          <button
+            onClick={handleLogin}
+            className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
+          >
+            로그인
+          </button>
+        </div>
+
+        {loginError && <p className="text-red-600">{loginError}</p>}
+      </div>
+    );
+  }
+
+  // 관리자 페이지 렌더링
+  if (isAdmin) {
+    return (
+      <div className="max-w-xl mx-auto p-6 space-y-6 font-sans relative min-h-screen pb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">관리자 페이지 - 사용자 관리</h2>
+          <button
+            onClick={handleLogout}
+            className="text-red-600 underline hover:text-red-800"
+          >
+            로그아웃
+          </button>
+        </div>
+
+        <div className="mb-4 border rounded p-4 bg-gray-50">
+          <h3 className="font-semibold mb-2">새 사용자 등록</h3>
+          <input
+            type="text"
+            placeholder="새 사용자 아이디"
+            value={newUserId}
+            onChange={(e) => setNewUserId(e.target.value)}
+            className="border rounded px-3 py-2 w-full mb-2"
+          />
+          <input
+            type="password"
+            placeholder="새 사용자 비밀번호"
+            value={newUserPw}
+            onChange={(e) => setNewUserPw(e.target.value)}
+            className="border rounded px-3 py-2 w-full mb-2"
+          />
+          {userAddError && <p className="text-red-600 mb-2">{userAddError}</p>}
+          <button
+            onClick={handleAddUser}
+            className="bg-green-600 text-white px-4 py-2 rounded font-semibold hover:bg-green-700"
+          >
+            사용자 등록
+          </button>
+        </div>
+
+        <div>
+          <h3 className="font-semibold mb-2">등록된 사용자 목록</h3>
+          <ul className="space-y-2 max-h-64 overflow-y-auto border rounded p-4 bg-white">
+            {getRegisteredUsers().length === 0 && <li>등록된 사용자가 없습니다.</li>}
+            {getRegisteredUsers().map((user) => (
+              <li key={user.id} className="flex justify-between items-center border-b py-1">
+                <span>{user.id}</span>
+                <button
+                  onClick={() => handleRemoveUser(user.id)}
+                  className="text-red-600 hover:underline"
+                  aria-label={`${user.id} 사용자 삭제`}
+                >
+                  삭제
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    );
+  }
+
+  // 일반 사용자 페이지 (기존 모든 기능 유지)
   return (
     <div className="max-w-xl mx-auto p-6 space-y-6 font-sans relative min-h-screen pb-8">
       {toast && <Toast emoji={toast.emoji} message={toast.message} onClose={() => setToast(null)} />}
 
-      {!isLoggedIn ? (
-        <div className="max-w-sm mx-auto p-6 mt-20 border rounded shadow space-y-4 font-sans">
-          <h2 className="text-xl font-semibold text-center">로그인 해주세요</h2>
-          <input
-            type="text"
-            placeholder="아이디"
-            value={userId}
-            onChange={(e) => setUserId(e.target.value)}
-            className="border rounded px-3 py-2 w-full"
-          />
-          <input
-            type="password"
-            placeholder="비밀번호"
-            value={userPw}
-            onChange={(e) => setUserPw(e.target.value)}
-            className="border rounded px-3 py-2 w-full"
-          />
+      <div className="flex justify-end gap-2">
+        <span className="text-sm text-gray-600">안녕하세요, {userId}님</span>
+        <button
+          onClick={handleLogout}
+          className="text-red-600 underline text-sm hover:text-red-800 transition"
+        >
+          로그아웃
+        </button>
+      </div>
 
-          <div className="flex justify-between items-center mt-1">
+      <div className="flex justify-center items-center gap-4">
+        <button aria-label="Previous Week" onClick={handlePrevWeek} className="px-3 py-1 text-lg font-bold">
+          &lt;
+        </button>
+        <span className="font-semibold text-lg">{formatWeekLabel(currentDate, weekNum)}</span>
+        <button aria-label="Next Week" onClick={handleNextWeek} className="px-3 py-1 text-lg font-bold">
+          &gt;
+        </button>
+      </div>
+
+      <div className="flex justify-center gap-3 mt-2">
+        {dayLetters.map((letter, idx) => (
+          <div key={letter + idx} className="flex flex-col items-center">
+            <span className="text-xs text-gray-500">{formatMonthDay(currentDate, idx)}</span>
             <button
-              onClick={() => {
-                setAdminModeActive(!adminModeActive);
-                setLoginError("");
-                setUserId("");
-                setUserPw("");
-                setUserAddError("");
-              }}
-              className="text-sm text-blue-600 hover:underline"
-            >
-              {adminModeActive ? "일반 로그인 모드로 전환" : "관리자 모드"}
-            </button>
-            <button
-              onClick={handleLogin}
-              className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
-            >
-              로그인
-            </button>
-          </div>
-
-          {loginError && <p className="text-red-600">{loginError}</p>}
-
-          {adminModeActive && (
-            <div className="mt-4 border rounded p-4 bg-gray-50">
-              <h3 className="font-semibold mb-2">사용자 등록 (관리자 전용)</h3>
-              <input
-                type="text"
-                placeholder="새 사용자 아이디"
-                value={newUserId}
-                onChange={(e) => setNewUserId(e.target.value)}
-                className="border rounded px-3 py-2 w-full mb-2"
-              />
-              <input
-                type="password"
-                placeholder="새 사용자 비밀번호"
-                value={newUserPw}
-                onChange={(e) => setNewUserPw(e.target.value)}
-                className="border rounded px-3 py-2 w-full mb-2"
-              />
-              {userAddError && <p className="text-red-600 mb-2">{userAddError}</p>}
-              <button
-                onClick={handleAddUser}
-                className="bg-green-600 text-white px-4 py-2 rounded font-semibold hover:bg-green-700 transition"
-              >
-                사용자 등록
-              </button>
-            </div>
-          )}
-        </div>
-      ) : (
-        <>
-          <div className="flex justify-end gap-2">
-            <span className="text-sm text-gray-600">안녕하세요, {userId}님</span>
-            <button
-              onClick={handleLogout}
-              className="text-red-600 underline text-sm hover:text-red-800 transition"
-            >
-              로그아웃
-            </button>
-          </div>
-
-          {isAdmin && (
-            <button className="mb-4 px-4 py-2 bg-red-600 text-white rounded font-semibold">
-              관리자 모드
-            </button>
-          )}
-
-          <div className="flex justify-center items-center gap-4">
-            <button aria-label="Previous Week" onClick={handlePrevWeek} className="px-3 py-1 text-lg font-bold">
-              &lt;
-            </button>
-            <span className="font-semibold text-lg">{formatWeekLabel(currentDate, weekNum)}</span>
-            <button aria-label="Next Week" onClick={handleNextWeek} className="px-3 py-1 text-lg font-bold">
-              &gt;
-            </button>
-          </div>
-
-          <div className="flex justify-center gap-3 mt-2">
-            {dayLetters.map((letter, idx) => (
-              <div key={letter + idx} className="flex flex-col items-center">
-                <span className="text-xs text-gray-500">{formatMonthDay(currentDate, idx)}</span>
-                <button
-                  onClick={() => setSelectedDay(fullDays[idx])}
-                  className={`rounded-full w-8 h-8 flex items-center justify-center font-semibold ${
-                    selectedDay === fullDays[idx] ? "bg-black text-white" : "bg-gray-300 text-black"
-                  }`}
-                  aria-label={fullDays[idx]}
-                >
-                  {letter}
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex justify-center gap-4 mt-4">
-            <button
-              onClick={() => setSelectedTab("routine-habit")}
-              className={`rounded-full px-5 py-2 font-semibold transition ${
-                selectedTab === "routine-habit" ? "bg-black text-white" : "bg-gray-300 text-black"
+              onClick={() => setSelectedDay(fullDays[idx])}
+              className={`rounded-full w-8 h-8 flex items-center justify-center font-semibold ${
+                selectedDay === fullDays[idx] ? "bg-black text-white" : "bg-gray-300 text-black"
               }`}
+              aria-label={fullDays[idx]}
             >
-              루틴 및 습관
+              {letter}
             </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex justify-center gap-4 mt-4">
+        <button
+          onClick={() => setSelectedTab("routine-habit")}
+          className={`rounded-full px-5 py-2 font-semibold transition ${
+            selectedTab === "routine-habit" ? "bg-black text-white" : "bg-gray-300 text-black"
+          }`}
+        >
+          루틴 및 습관
+        </button>
+        <button
+          onClick={() => setSelectedTab("tracker")}
+          className={`rounded-full px-5 py-2 font-semibold transition ${
+            selectedTab === "tracker" ? "bg-black text-white" : "bg-gray-300 text-black"
+          }`}
+        >
+          통계
+        </button>
+        <button
+          onClick={() => setSelectedTab("today-diary")}
+          className={`rounded-full px-5 py-2 font-semibold transition ${
+            selectedTab === "today-diary" ? "bg-black text-white" : "bg-gray-300 text-black"
+          }`}
+        >
+          오늘 일기
+        </button>
+      </div>
+
+      {selectedTab === "routine-habit" && (
+        <div>
+          <div className="flex flex-col gap-2 mt-4">
+            <input
+              type="time"
+              step={3600}
+              value={newRoutine.start}
+              onChange={(e) => setNewRoutine((prev) => ({ ...prev, start: e.target.value }))}
+              className="border rounded px-2 py-1"
+            />
+            <input
+              type="time"
+              step={3600}
+              value={newRoutine.end}
+              onChange={(e) => setNewRoutine((prev) => ({ ...prev, end: e.target.value }))}
+              className="border rounded px-2 py-1"
+            />
+            <input
+              type="text"
+              placeholder="루틴 또는 습관 추가"
+              value={newRoutine.task}
+              onChange={(e) => setNewRoutine((prev) => ({ ...prev, task: e.target.value }))}
+              className="border rounded px-2 py-1"
+            />
             <button
-              onClick={() => setSelectedTab("tracker")}
-              className={`rounded-full px-5 py-2 font-semibold transition ${
-                selectedTab === "tracker" ? "bg-black text-white" : "bg-gray-300 text-black"
-              }`}
+              onClick={handleAddRoutine}
+              className="rounded-full bg-black text-white py-2 mt-2 w-full font-semibold hover:bg-gray-800 transition"
             >
-              통계
-            </button>
-            <button
-              onClick={() => setSelectedTab("today-diary")}
-              className={`rounded-full px-5 py-2 font-semibold transition ${
-                selectedTab === "today-diary" ? "bg-black text-white" : "bg-gray-300 text-black"
-              }`}
-            >
-              오늘 일기
+              추가
             </button>
           </div>
 
-          {selectedTab === "routine-habit" && (
-            <div>
-              <div className="flex flex-col gap-2 mt-4">
-                <input
-                  type="time"
-                  step={3600}
-                  value={newRoutine.start}
-                  onChange={(e) => setNewRoutine((prev) => ({ ...prev, start: e.target.value }))}
-                  className="border rounded px-2 py-1"
-                />
-                <input
-                  type="time"
-                  step={3600}
-                  value={newRoutine.end}
-                  onChange={(e) => setNewRoutine((prev) => ({ ...prev, end: e.target.value }))}
-                  className="border rounded px-2 py-1"
-                />
-                <input
-                  type="text"
-                  placeholder="루틴 또는 습관 추가"
-                  value={newRoutine.task}
-                  onChange={(e) => setNewRoutine((prev) => ({ ...prev, task: e.target.value }))}
-                  className="border rounded px-2 py-1"
-                />
-                <button
-                  onClick={handleAddRoutine}
-                  className="rounded-full bg-black text-white py-2 mt-2 w-full font-semibold hover:bg-gray-800 transition"
-                >
-                  추가
-                </button>
-              </div>
-
-              <div className="mt-6 space-y-4">
-                {routines
-                  .filter((r) => r.day === selectedDay)
-                  .map((routine, idx, arr) => (
-                    <React.Fragment key={`${routine.task}-${idx}`}>
-                      <div
-                        className="border rounded p-4 flex justify-between items-center"
-                        title=""
-                      >
-                        <div>
-                          <span className="font-semibold">
-                            [{routine.start} - {routine.end}] {routine.task}
-                          </span>
-                          {routine.done && <span className="ml-2 text-green-600 font-semibold">✔</span>}
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={routine.done}
-                          onChange={() => {
-                            toggleDone(routines.indexOf(routine));
-                          }}
-                        />
-                      </div>
-                      {routine.done && (
-                        <div className="mt-1 flex gap-1 flex-wrap">
-                          {[...Array(10).keys()].map((n) => (
-                            <button
-                              key={n}
-                              className={`px-2 rounded ${
-                                routine.rating === n + 1 ? "bg-black text-white" : "bg-gray-300 text-black"
-                              }`}
-                              onClick={() => setRating(routines.indexOf(routine), n + 1)}
-                            >
-                              {n + 1}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {idx < arr.length - 1 && arr.length > 1 && (
-                        <>
-                          {habitSuggestionIdx === idx ? (
-                            <div className="p-3 bg-blue-50 rounded space-y-2 relative">
-                              <button
-                                onClick={() => {
-                                  setHabitSuggestionIdx(null);
-                                  setAiHabitSuggestions([]);
-                                  setAiHabitError(null);
-                                }}
-                                className="absolute top-1 right-1 px-2 py-0.5 rounded hover:bg-gray-300"
-                                aria-label="습관 추천 닫기"
-                              >
-                                ✕
-                              </button>
-                              {aiHabitLoading ? (
-                                <p>추천 생성 중...</p>
-                              ) : aiHabitError ? (
-                                <p className="text-red-600">{aiHabitError}</p>
-                              ) : (
-                                <div className="flex flex-wrap gap-2">
-                                  {(aiHabitSuggestions.length > 0 ? aiHabitSuggestions : habitCandidates.slice(0, 3)).map((habit, i) => (
-                                    <button
-                                      key={i}
-                                      onClick={() => {
-                                        addHabitBetween(idx, habit);
-                                        setHabitSuggestionIdx(null);
-                                        setAiHabitSuggestions([]);
-                                        setAiHabitError(null);
-                                      }}
-                                      className="rounded-full bg-gray-300 px-3 py-1 hover:bg-gray-400"
-                                    >
-                                      {habit}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
+          <div className="mt-6 space-y-4">
+            {routines
+              .filter((r) => r.day === selectedDay)
+              .map((routine, idx, arr) => (
+                <React.Fragment key={`${routine.task}-${idx}`}>
+                  <div
+                    className="border rounded p-4 flex justify-between items-center"
+                    title=""
+                  >
+                    <div>
+                      <span className="font-semibold">
+                        [{routine.start} - {routine.end}] {routine.task}
+                      </span>
+                      {routine.done && <span className="ml-2 text-green-600 font-semibold">✔</span>}
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={routine.done}
+                      onChange={() => {
+                        toggleDone(routines.indexOf(routine));
+                      }}
+                    />
+                  </div>
+                  {routine.done && (
+                    <div className="mt-1 flex gap-1 flex-wrap">
+                      {[...Array(10).keys()].map((n) => (
+                        <button
+                          key={n}
+                          className={`px-2 rounded ${
+                            routine.rating === n + 1 ? "bg-black text-white" : "bg-gray-300 text-black"
+                          }`}
+                          onClick={() => setRating(routines.indexOf(routine), n + 1)}
+                        >
+                          {n + 1}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {idx < arr.length - 1 && arr.length > 1 && (
+                    <>
+                      {habitSuggestionIdx === idx ? (
+                        <div className="p-3 bg-blue-50 rounded space-y-2 relative">
+                          <button
+                            onClick={() => {
+                              setHabitSuggestionIdx(null);
+                              setAiHabitSuggestions([]);
+                              setAiHabitError(null);
+                            }}
+                            className="absolute top-1 right-1 px-2 py-0.5 rounded hover:bg-gray-300"
+                            aria-label="습관 추천 닫기"
+                          >
+                            ✕
+                          </button>
+                          {aiHabitLoading ? (
+                            <p>추천 생성 중...</p>
+                          ) : aiHabitError ? (
+                            <p className="text-red-600">{aiHabitError}</p>
                           ) : (
-                            <div className="text-center my-2">
-                              <button
-                                onClick={() => handleFetchHabitSuggestions(idx)}
-                                className="rounded-full bg-gray-300 px-3 py-1 hover:bg-gray-400"
-                                aria-label="습관 추천 열기"
-                              >
-                                + 습관 추천
-                              </button>
+                            <div className="flex flex-wrap gap-2">
+                              {(aiHabitSuggestions.length > 0 ? aiHabitSuggestions : habitCandidates.slice(0, 3)).map((habit, i) => (
+                                <button
+                                  key={i}
+                                  onClick={() => {
+                                    addHabitBetween(idx, habit);
+                                    setHabitSuggestionIdx(null);
+                                    setAiHabitSuggestions([]);
+                                    setAiHabitError(null);
+                                  }}
+                                  className="rounded-full bg-gray-300 px-3 py-1 hover:bg-gray-400"
+                                >
+                                  {habit}
+                                </button>
+                              ))}
                             </div>
                           )}
-                        </>
+                        </div>
+                      ) : (
+                        <div className="text-center my-2">
+                          <button
+                            onClick={() => handleFetchHabitSuggestions(idx)}
+                            className="rounded-full bg-gray-300 px-3 py-1 hover:bg-gray-400"
+                            aria-label="습관 추천 열기"
+                          >
+                            + 습관 추천
+                          </button>
+                        </div>
                       )}
-                    </React.Fragment>
-                  ))}
-              </div>
+                    </>
+                  )}
+                </React.Fragment>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {selectedTab === "tracker" && (
+        <div className="mt-4 space-y-6">
+          <h2 className="font-semibold text-center">습관 통계</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <h3 className="font-semibold mb-2">완료율 (%)</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={completionData}>
+                  <XAxis dataKey="name" />
+                  <YAxis domain={[0, 100]} />
+                  <Tooltip />
+                  <Bar dataKey="Completion" fill="#0f172a" />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          )}
-
-          {selectedTab === "tracker" && (
-            <div className="mt-4 space-y-6">
-              <h2 className="font-semibold text-center">습관 통계</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-semibold mb-2">완료율 (%)</h3>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={completionData}>
-                      <XAxis dataKey="name" />
-                      <YAxis domain={[0, 100]} />
-                      <Tooltip />
-                      <Bar dataKey="Completion" fill="#0f172a" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2">평균 만족도</h3>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={satisfactionData}>
-                      <XAxis dataKey="name" />
-                      <YAxis domain={[0, 10]} />
-                      <Tooltip />
-                      <Bar dataKey="Satisfaction" fill="#0f172a" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="text-center mt-4">
-                <button
-                  onClick={() => downloadCSV(routines)}
-                  className="rounded-full bg-black text-white px-6 py-2 font-semibold hover:bg-gray-800 transition"
-                >
-                  CSV 다운로드
-                </button>
-              </div>
+            <div>
+              <h3 className="font-semibold mb-2">평균 만족도</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={satisfactionData}>
+                  <XAxis dataKey="name" />
+                  <YAxis domain={[0, 10]} />
+                  <Tooltip />
+                  <Bar dataKey="Satisfaction" fill="#0f172a" />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          )}
+          </div>
 
-          {selectedTab === "today-diary" && (
-            <div className="mt-4 space-y-6 max-h-[480px] overflow-y-auto border rounded p-4 bg-gray-50 pb-8">
-              <h2 className="text-center font-semibold text-xl mb-4">오늘 일기</h2>
-              {fullDays.map((day, idx) => {
-                const completedTasks = todayDiaryLogs[day]?.filter((task) =>
-                  routines.find((r) => r.day === day && r.task === task && r.done)
-                ) || [];
-                if (completedTasks.length < 5) return null;
+          <div className="text-center mt-4">
+            <button
+              onClick={() => downloadCSV(routines)}
+              className="rounded-full bg-black text-white px-6 py-2 font-semibold hover:bg-gray-800 transition"
+            >
+              CSV 다운로드
+            </button>
+          </div>
+        </div>
+      )}
 
-                const diaryDateStr = formatDiaryDate(day, currentDate, idx);
-                const summary = diarySummariesAI[day] || warmSummary(completedTasks);
-                const imageUrl = diaryImagesAI[day];
+      {selectedTab === "today-diary" && (
+        <div className="mt-4 space-y-6 max-h-[480px] overflow-y-auto border rounded p-4 bg-gray-50 pb-8">
+          <h2 className="text-center font-semibold text-xl mb-4">오늘 일기</h2>
+          {fullDays.map((day, idx) => {
+            const completedTasks = todayDiaryLogs[day]?.filter((task) =>
+              routines.find((r) => r.day === day && r.task === task && r.done)
+            ) || [];
+            if (completedTasks.length < 5) return null;
 
-                return (
-                  <div key={day} className="mb-6">
-                    <h3 className="font-semibold">{diaryDateStr}</h3>
-                    <p className="mb-2 whitespace-pre-line">{summary}</p>
-                    {loadingAI[day] ? (
-                      <p className="italic text-blue-500">AI 이미지 생성 중입니다...</p>
-                    ) : imageUrl ? (
-                      <Image
-                        src={imageUrl}
-                        alt={`일기 일러스트: ${diaryDateStr}`}
-                        width={256}
-                        height={256}
-                        className="w-64 h-64 object-cover rounded shadow-md"
-                        loading="lazy"
-                        unoptimized
-                      />
-                    ) : (
-                      <p className="italic text-gray-400">이미지가 없습니다.</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </>
+            const diaryDateStr = formatDiaryDate(day, currentDate, idx);
+            const summary = diarySummariesAI[day] || warmSummary(completedTasks);
+            const imageUrl = diaryImagesAI[day];
+
+            return (
+              <div key={day} className="mb-6">
+                <h3 className="font-semibold">{diaryDateStr}</h3>
+                <p className="mb-2 whitespace-pre-line">{summary}</p>
+                {loadingAI[day] ? (
+                  <p className="italic text-blue-500">AI 이미지 생성 중입니다...</p>
+                ) : imageUrl ? (
+                  <Image
+                    src={imageUrl}
+                    alt={`일기 일러스트: ${diaryDateStr}`}
+                    width={256}
+                    height={256}
+                    className="w-64 h-64 object-cover rounded shadow-md"
+                    loading="lazy"
+                    unoptimized
+                  />
+                ) : (
+                  <p className="italic text-gray-400">이미지가 없습니다.</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
