@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -23,7 +23,6 @@ const habitCandidates = ["깊은 숨 2분", "물 한잔", "짧은 산책", "스�
 const fullDays = ["월", "화", "수", "목", "금", "토", "일"];
 const dayLetters = fullDays.map((d) => d[0]);
 
-// 습관명 앞 이모지 매핑용 키워드
 const habitEmojis: Record<string, string> = {
   '숨': '💨',
   '산책': '🚶‍♂️',
@@ -35,39 +34,9 @@ const habitEmojis: Record<string, string> = {
   '휴식': '😌',
 };
 
-function getEncouragementAndHabit(task: string) {
-  const lower = task.toLowerCase();
-  if (lower.includes("study") || lower.includes("read")) {
-    return {
-      emoji: "📚",
-      msg: "학습에 집중했네요!",
-      habitSuggestion: "5분간 뇌 휴식을 가져보세요",
-    };
-  }
-  if (lower.includes("exercise") || lower.includes("walk")) {
-    return {
-      emoji: "🏃‍♂️",
-      msg: "멋진 운동이에요!",
-      habitSuggestion: "운동 후 수분 보충을 해보세요",
-    };
-  }
-  if (lower.includes("meditate") || lower.includes("breathing")) {
-    return {
-      emoji: "🧘‍♀️",
-      msg: "마음이 차분해지네요!",
-      habitSuggestion: "명상 후 가벼운 스트레칭을 해보세요",
-    };
-  }
-  return {
-    emoji: "🎉",
-    msg: "잘 해냈어요!",
-    habitSuggestion: "물 한잔 마시기",
-  };
-}
-
 function Toast({ message, emoji, onClose }: { message: string; emoji: string; onClose: () => void }) {
-  useEffect(() => {
-    const timer = setTimeout(() => onClose(), 2500);
+  React.useEffect(() => {
+    const timer = setTimeout(onClose, 2500);
     return () => clearTimeout(timer);
   }, [onClose]);
 
@@ -109,13 +78,23 @@ function formatMonthDay(date: Date, dayIndex: number) {
   return `${mm}/${dd}`;
 }
 
-// 습관 추천 텍스트 정제 및 이모지 + 설명 붙이기
-function cleanAndDescribeHabits(rawLines: string[]): {habit: string; description: string}[] {
+// GPT 습관 추천 결과 필터링 및 설명 + 이모지 붙이기
+function cleanAndDescribeHabits(rawLines: string[]): { habit: string; description: string }[] {
+  const isValidHabit = (line: string) => {
+    if (!line) return false;
+    const cleaned = line.replace(/\*\*/g, '').trim();
+    if (cleaned.length < 3) return false;
+    const keywords = ['분', '걷기', '산책', '숨', '스트레칭', '물', '명상', '운동', '독서', '휴식'];
+    return keywords.some(k => cleaned.includes(k));
+  };
+
   return rawLines
+    .filter(isValidHabit)
     .map(line => {
-      // ** 제거 및 앞 숫자/분 제거
-      let habit = line.replace(/\*\*/g, '').trim();
-      habit = habit.replace(/^(\d+분?|[0-9]+[가-힣]+)\s*/, '').trim();
+      let habit = line.replace(/\*\*/g, '')
+        .replace(/\(\s*습관\s*\)-?/, '')
+        .replace(/^(\d+분?|[0-9]+[가-힣]+)\s*/, '')
+        .trim();
       if (habit.length > 30) habit = habit.slice(0, 27) + '...';
 
       let emoji = '🎯';
@@ -127,8 +106,7 @@ function cleanAndDescribeHabits(rawLines: string[]): {habit: string; description
       }
       const description = `${emoji} ${habit} - 건강과 집중에 도움을 줍니다.`;
       return { habit, description };
-    })
-    .filter(({ habit }) => habit.length > 0);
+    });
 }
 
 export default function Page() {
@@ -172,10 +150,6 @@ export default function Page() {
   const [aiHabitLoading, setAiHabitLoading] = useState(false);
   const [aiHabitError, setAiHabitError] = useState<string | null>(null);
 
-  // 삭제 확인용 모달 상태
-  const [deleteConfirmIdx, setDeleteConfirmIdx] = useState<number | null>(null);
-
-  // 통계 기간 필터 상태
   const [statsFilter, setStatsFilter] = useState<'week' | 'month' | 'year'>('week');
 
   const getRegisteredUsers = (): { id: string; pw: string }[] => {
@@ -254,7 +228,6 @@ export default function Page() {
     setToast({ emoji: "✅", message: `사용자 ${newUserId} 등록 완료!` });
   };
 
-  // 로컬스토리지 저장
   useEffect(() => {
     if (userId) {
       localStorage.setItem(routinesKey, JSON.stringify(routines));
@@ -266,7 +239,6 @@ export default function Page() {
     }
   }, [todayDiaryLogs, diaryLogsKey, userId]);
 
-  // 드래그앤드롭 완료시 순서 변경 처리
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     const items = Array.from(routines);
@@ -276,7 +248,6 @@ export default function Page() {
     if (userId) localStorage.setItem(routinesKey, JSON.stringify(items));
   };
 
-  // 삭제 확인 모달 처리
   const handleRoutineDeleteConfirm = (idx: number) => {
     if (window.confirm("삭제하시겠습니까?")) {
       const copy = [...routines];
@@ -287,7 +258,6 @@ export default function Page() {
     }
   };
 
-  // GPT 습관 추천 요청 및 필터링
   async function fetchHabitSuggestions(prevTask: string | null, nextTask: string | null): Promise<string[]> {
     const context = [prevTask, nextTask].filter(Boolean).join(", ");
     if (!context) return habitCandidates.slice(0, 3);
@@ -309,7 +279,6 @@ export default function Page() {
         return habitCandidates.slice(0, 3);
       }
 
-      // 정제 후 반환
       const lines = data.result
         .split(/\r?\n/)
         .filter((line: string) => line.trim() !== "")
@@ -337,7 +306,6 @@ export default function Page() {
     setHabitSuggestionIdx(idx);
   };
 
-  // 추가 습관 삽입 (앞 '(습관)' 제거 + 스타일)
   const addHabitBetween = (idx: number, habit: string) => {
     if (!isLoggedIn) return alert("로그인 후 이용해주세요.");
     const cleanedHabit = habit.replace(/\(\s*습관\s*\)-?/, "").trim();
@@ -356,9 +324,27 @@ export default function Page() {
     setHabitSuggestionIdx(null);
   };
 
-  // 완료율 및 만족도 계산 (통계용)
-  const filteredRoutines = routines.filter(r => true); // 기간 필터 필요시 확장 가능
+  // 통계용 필터 적용 (주/월/년) - 간단히 데이터 반환용
+  function filterDataByPeriod(data: Routine[], period: 'week' | 'month' | 'year') {
+    // 여기서는 예시로 필터 동작 없이 그대로 반환, 실제 시계열 데이터 처리 시 적용 가능
+    return data;
+  }
+
+  const filteredRoutines = filterDataByPeriod(routines, statsFilter);
+
   const completionData = fullDays.map(day => {
+    const filteredDay = filteredRoutines.filter(r => r.day === day && !r.isHabit);
+    const total = filteredDay.length;
+    const done = filteredDay.filter(r => r.done).length;
+    return { name: day, Completion: total ? Math.round((done / total) * 100) : 0 };
+  });
+  const habitCompletionData = fullDays.map(day => {
+    const filteredDay = filteredRoutines.filter(r => r.day === day && r.isHabit);
+    const total = filteredDay.length;
+    const done = filteredDay.filter(r => r.done).length;
+    return { name: day, Completion: total ? Math.round((done / total) * 100) : 0 };
+  });
+  const totalCompletionData = fullDays.map(day => {
     const filteredDay = filteredRoutines.filter(r => r.day === day);
     const total = filteredDay.length;
     const done = filteredDay.filter(r => r.done).length;
@@ -370,7 +356,6 @@ export default function Page() {
     return { name: day, Satisfaction: avg };
   });
 
-  // 출석률 계산 (간단히, 날짜별 완료 갯수 기반)
   const attendanceData = React.useMemo(() => {
     const data: { date: string; count: number }[] = [];
     const startDate = new Date(currentDate);
@@ -379,20 +364,18 @@ export default function Page() {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + i);
       const dateStr = date.toISOString().slice(0, 10);
-      const dayChar = fullDays[date.getDay() === 0 ? 6 : date.getDay() - 1]; // 일요일은 6번 인덱스 처리
+      const dayChar = fullDays[date.getDay() === 0 ? 6 : date.getDay() - 1];
       const doneCount = routines.filter(r => r.day === dayChar && r.done).length;
       data.push({ date: dateStr, count: doneCount });
     }
     return data;
   }, [routines, currentDate]);
 
-  // CSV 다운로드에 통계 데이터 포함
   function downloadCSV() {
     if (routines.length === 0) {
       alert("내보낼 데이터가 없습니다.");
       return;
     }
-    // 루틴 데이터
     const headers = ["UserID", "Day", "Date", "Task", "Done", "Rating", "IsHabit"];
     const rows = routines.map(({ day, task, done, rating, isHabit }) => {
       const dateStr = formatDiaryDate(day, currentDate, fullDays.indexOf(day));
@@ -407,16 +390,14 @@ export default function Page() {
       ];
     });
 
-    // 간단 출석률 추가
     const attendanceHeaders = ["Date", "AttendanceCount"];
     const attendanceRows = attendanceData.map(({ date, count }) => [date, count.toString()]);
 
-    // 전체 CSV 문자열
     const csvContent =
       [
         headers.join(","),
         ...rows.map(r => r.join(",")),
-        "", // 구분용 빈줄
+        "",
         attendanceHeaders.join(","),
         ...attendanceRows.map(r => r.join(",")),
       ].join("\n");
@@ -431,8 +412,6 @@ export default function Page() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }
-
-  // AI 요약 및 이미지 생성 생략(기존 그대로 유지)
 
   return (
     <div className="max-w-xl mx-auto p-6 space-y-6 font-sans relative min-h-screen pb-8">
@@ -652,7 +631,7 @@ export default function Page() {
                                     copy[idx].done = !copy[idx].done;
                                     setRoutines(copy);
                                   }}
-                                  onClick={e => e.stopPropagation()} // 체크박스 클릭시 삭제방지
+                                  onClick={e => e.stopPropagation()}
                                 />
                               </div>
                             )}
@@ -711,7 +690,10 @@ export default function Page() {
 
               {/* 출석률 캘린더 그래프 */}
               <div className="mb-6">
-                <h3 className="font-semibold mb-2 cursor-pointer" onClick={() => setStatsFilter('month')}>
+                <h3
+                  className="font-semibold mb-2 cursor-pointer"
+                  onClick={() => setStatsFilter('month')}
+                >
                   출석률 캘린더 (최근 3개월)
                 </h3>
                 <CalendarHeatmap
@@ -731,8 +713,11 @@ export default function Page() {
               {/* 완료율 및 만족도 그래프 */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="font-semibold mb-2 cursor-pointer" onClick={() => setStatsFilter('week')}>
-                    완료율 (%)
+                  <h3
+                    className="font-semibold mb-2 cursor-pointer"
+                    onClick={() => setStatsFilter('week')}
+                  >
+                    루틴 완료율 (%)
                   </h3>
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={completionData}>
@@ -744,7 +729,42 @@ export default function Page() {
                   </ResponsiveContainer>
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-2 cursor-pointer" onClick={() => setStatsFilter('year')}>
+                  <h3
+                    className="font-semibold mb-2 cursor-pointer"
+                    onClick={() => setStatsFilter('month')}
+                  >
+                    습관 완료율 (%)
+                  </h3>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={habitCompletionData}>
+                      <XAxis dataKey="name" />
+                      <YAxis domain={[0, 100]} />
+                      <Tooltip />
+                      <Bar dataKey="Completion" fill="#0f172a" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div>
+                  <h3
+                    className="font-semibold mb-2 cursor-pointer"
+                    onClick={() => setStatsFilter('year')}
+                  >
+                    전체 완료율 (%)
+                  </h3>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={totalCompletionData}>
+                      <XAxis dataKey="name" />
+                      <YAxis domain={[0, 100]} />
+                      <Tooltip />
+                      <Bar dataKey="Completion" fill="#0f172a" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div>
+                  <h3
+                    className="font-semibold mb-2 cursor-pointer"
+                    onClick={() => setStatsFilter('year')}
+                  >
                     평균 만족도
                   </h3>
                   <ResponsiveContainer width="100%" height={200}>
