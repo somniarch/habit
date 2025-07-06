@@ -698,13 +698,13 @@ export default function Page() {
               루틴 및 습관
             </button>
             <button
-              onClick={() => setSelectedTab("tracker")}
-              className={`rounded-full px-5 py-2 font-semibold transition ${
-                selectedTab === "tracker" ? "bg-black text-white" : "bg-gray-300 text-black"
-              }`}
-            >
-              트래커
-            </button>
+            onClick={() => setSelectedTab("tracker")}
+            className={`rounded-full px-5 py-2 font-semibold transition ${
+              selectedTab === "tracker" ? "bg-black text-white" : "bg-gray-300 text-black"
+            }`}
+          >
+            트래커
+          </button>
 
             {/* 출석률 캘린더 */}
             <div>
