@@ -62,35 +62,37 @@ function cleanAndDescribeHabits(
 ): { habit: string; emoji: string }[] {
   return rawLines
     .map(line => {
-      // 마크다운 및 설명 제거
+      // 마크다운 및 괄호/설명 제거
       let cleaned = line
-        .replace(/^[\*\-\s]+/, "")      // 앞쪽 *, -, 공백 제거
-        .replace(/\*\*/g, "")           // ** 제거
-        .replace(/\*/g, "")             // * 제거
-        .replace(/\(.+?\)/g, "")        // 괄호 설명 제거
-        .replace(/\s{2,}/g, " ")        // 2칸 이상 공백
-        .replace(/\[\(?\s*습관\s*\)?-?\]/g, "")
-        .replace(/^\(?\s*습관\s*\)?-?/, "")
+        .replace(/^[\*\-\s]+/, "")        // 앞쪽 *, -, 공백 제거
+        .replace(/\*\*/g, "")             // ** 제거
+        .replace(/\*/g, "")               // * 제거
+        .replace(/\(.+?\)/g, "")          // 괄호 제거
+        .replace(/\s{2,}/g, " ")          // 2칸 이상 공백
         .trim();
 
-      // '3분 스트레칭: 설명' or '3분 스트레칭 - 설명' → '3분 스트레칭'
+      // ':' 또는 '-' 기준으로 앞부분만 사용
       cleaned = cleaned.split(/[:\-]/)[0].trim();
 
-      // 'N분 행동' 또는 'N회 행동' 매칭
+      // "N분 행동" 또는 "N회 행동" 패턴 추출
       const match = cleaned.match(/(\d+)(분|회)\s*([가-힣a-zA-Z]+)/);
       if (!match) return null;
 
       const [_, amount, unit, action] = match;
       const shortHabit = `${amount}${unit} ${action}`;
 
-      // 이모지 매핑
-      let emoji = "🎯";
-      for (const key in habitEmojis) {
-        if (shortHabit.includes(key)) {
-          emoji = habitEmojis[key];
-          break;
-        }
-      }
+      // 추상적 키워드 제외
+      if (NON_HABIT_KEYWORDS.some(word => shortHabit.includes(word))) return null;
+      if (!ACTION_VERBS.some(verb => shortHabit.includes(verb))) return null;
+
+      return { habit: shortHabit, emoji: "" }; // emoji 비우기
+    })
+    .filter(
+      (item): item is { habit: string; emoji: string } =>
+        !!item && item.habit.length > 0,
+    );
+}
+
 
       // 필터링 기준
       if (
