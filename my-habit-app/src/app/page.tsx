@@ -689,15 +689,15 @@ export default function Page() {
           </div>
 
           <div className="flex justify-center gap-4 mt-4">
-            <button
-              onClick={() => setSelectedTab("routine-habit")}
-              className={`rounded-full px-5 py-2 font-semibold transition ${
-                selectedTab === "routine-habit" ? "bg-black text-white" : "bg-gray-300 text-black"
-              }`}
-            >
-              루틴 및 습관
-            </button>
-            <button
+          <button
+            onClick={() => setSelectedTab("routine-habit")}
+            className={`rounded-full px-5 py-2 font-semibold transition ${
+              selectedTab === "routine-habit" ? "bg-black text-white" : "bg-gray-300 text-black"
+            }`}
+          >
+            루틴 및 습관
+          </button>
+          <button
             onClick={() => setSelectedTab("tracker")}
             className={`rounded-full px-5 py-2 font-semibold transition ${
               selectedTab === "tracker" ? "bg-black text-white" : "bg-gray-300 text-black"
@@ -705,79 +705,16 @@ export default function Page() {
           >
             트래커
           </button>
+          <button
+            onClick={() => setSelectedTab("today-diary")}
+            className={`rounded-full px-5 py-2 font-semibold transition ${
+              selectedTab === "today-diary" ? "bg-black text-white" : "bg-gray-300 text-black"
+            }`}
+          >
+            오늘 일기
+          </button>
+        </div>
 
-            {/* 출석률 캘린더 */}
-            <div>
-              <h2 className="text-lg font-semibold text-center mb-2">주간 출석률 (최근 3개월)</h2>
-              <CalendarHeatmap
-                startDate={new Date(new Date().setMonth(new Date().getMonth() - 3))}
-                endDate={new Date()}
-                values={attendanceData}
-                classForValue={(value) => {
-                  if (!value || value.count === 0) return 'color-empty';
-                  if (value.count >= 3) return 'color-scale-4';
-                  if (value.count === 2) return 'color-scale-3';
-                  if (value.count === 1) return 'color-scale-2';
-                  return 'color-scale-1';
-                }}
-                showWeekdayLabels
-              />
-            </div>
-        
-            {/* 루틴 완료율 */}
-            <div>
-              <h3 className="font-semibold mb-2 text-center">루틴 완료율 (%)</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={routineCompletionData}>
-                  <XAxis dataKey="name" />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip />
-                  <Bar dataKey="Completion" fill="#0f172a" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-        
-            {/* 습관 완료율 */}
-            <div>
-              <h3 className="font-semibold mb-2 text-center">습관 완료율 (%)</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={habitCompletionData}>
-                  <XAxis dataKey="name" />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip />
-                  <Bar dataKey="Completion" fill="#0f172a" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-        
-            {/* 만족도 */}
-            <div>
-              <h3 className="font-semibold mb-2 text-center">만족도</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={satisfactionData}>
-                  <XAxis dataKey="name" />
-                  <YAxis domain={[0, 10]} />
-                  <Tooltip />
-                  <Bar dataKey="Satisfaction" fill="#0f172a" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-        
-            <div className="text-center mt-4">
-              <button
-                onClick={downloadCSV}
-                className="rounded-full bg-black text-white px-6 py-2 font-semibold hover:bg-gray-800 transition"
-              >
-                CSV 다운로드
-              </button>
-            </div>
-          </div>
-        )}
-
-            >
-              오늘 일기
-            </button>
-          </div>
 
           {selectedTab === "routine-habit" && (
             <DragDropContext onDragEnd={onDragEnd}>
