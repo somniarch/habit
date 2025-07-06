@@ -19,11 +19,19 @@ async function fetchHabitSuggestions(prevTask, nextTask) {
   const data = await res.json();
 
   const lines = (data.result || [])
-    .map((l: string) => l.trim())
-    .filter((l: string) => /^\d+분\s?\S{1,8}$/.test(l));
+    .split(/\r?\n/)
+    .map((line: string) =>
+      line
+        .trim()
+        .replace(/^[\*\-\d\.\)\s]*/g, '') // 앞번호, *, -, 공백 제거
+        .replace(/[:\-].*$/, '')          // 콜론(:) 또는 하이픈(-) 뒤 설명 제거
+        .trim()
+    )
+    .filter((l: string) => /^\d+분\s?\S{1,8}$/.test(l)); // 형식 필터
 
   return lines.map(habit => ({ habit, emoji: "" }));
 }
+
 type Routine = {
   day: string;
   start: string;
