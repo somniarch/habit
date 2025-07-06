@@ -62,51 +62,40 @@ function cleanAndDescribeHabits(
 ): { habit: string; emoji: string }[] {
   return rawLines
     .map(line => {
-      // 1. **, *, -, : 등 특수문자/마크다운 제거
+      // 앞쪽 *, -, 공백 제거
       let habit = line
-        .replace(/^[\*\-\s]+/, "")         // 앞쪽 *, -, 공백 제거
-        .replace(/\*\*/g, "")              // ** 제거
-        .replace(/\*/g, "")                // * 제거
-        .replace(/:/g, "")                 // : 제거
-        .replace(/\(.+?\)/g, "")           // (반복) 등 괄호 설명 제거
-        .replace(/\s{2,}/g, " ")           // 2칸 이상 공백 1칸으로
+        .replace(/^[\*\-\s]+/, "")
+        .replace(/\*\*/g, "")
+        .replace(/\*/g, "")
+        .replace(/:/g, "")
+        .replace(/\(.+?\)/g, "")
+        .replace(/\s{2,}/g, " ")
         .replace(/\[\(?\s*습관\s*\)?-?\]/g, "")
         .replace(/^\(?\s*습관\s*\)?-?/, "")
         .trim();
 
-      // 2. 문장형 설명이 붙어 있으면 앞쪽 "N분 행동"만 남기기
-      //    예: "2분 깊은 호흡: ..." → "2분 깊은 호흡"
-      //    예: "3분 명상 - ..." → "3분 명상"
+      // '💨 2분 숨쉬기 - 설명' 형태에서 '💨 2분 숨쉬기'만 남기기
       habit = habit.split(/[:\-]/)[0].trim();
 
-      // 3. 10자 이내, 20자 이내만 허용
-      if (!habit || habit.length > 20) return null;
-      if (NON_HABIT_KEYWORDS.some(word => habit.includes(word))) return null;
-      if (!ACTION_VERBS.some(verb => habit.includes(verb))) return null;
+      // 이모지를 추출
+      const emojiMatch = habit.match(/^[\p{Emoji}]/u);
+      const emoji = emojiMatch ? emojiMatch[0] : "🎯";
 
-      // 4. "N분 행동"만 남기기 (정규식)
-      const match = habit.match(/(\d+)분\s*([가-힣a-zA-Z]+)/);
-      let shortHabit = habit;
-      if (match) {
-        shortHabit = `${match[1]}분 ${match[2]}`;
-      }
-      if (shortHabit.length > 10) shortHabit = shortHabit.slice(0, 10);
+      // 이모지를 제외한 텍스트만 추출
+      const text = habit.replace(/^[\p{Emoji}]\s*/u, "");
 
-      // 5. 이모지 부착
-      let emoji = "🎯";
-      for (const key in habitEmojis) {
-        if (shortHabit.includes(key)) {
-          emoji = habitEmojis[key];
-          break;
-        }
-      }
-      return { habit: shortHabit, emoji };
+      if (!text || text.length > 20) return null;
+      if (NON_HABIT_KEYWORDS.some(word => text.includes(word))) return null;
+      if (!ACTION_VERBS.some(verb => text.includes(verb))) return null;
+
+      return { habit: `${emoji} ${text}`, emoji };
     })
     .filter(
       (item): item is { habit: string; emoji: string } =>
         !!item && item.habit.length > 0,
     );
 }
+
 
 
 function Toast({ message, emoji, onClose }: { message: string; emoji: string; onClose: () => void }) {
