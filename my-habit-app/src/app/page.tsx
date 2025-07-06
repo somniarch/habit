@@ -344,17 +344,23 @@ export default function Page() {
       .map((line: string) => line.replace(/^[\d\.\-\)\s]+/, "").trim());
 
     const cleaned = cleanAndDescribeHabits(lines);
+
     return cleaned.length > 0
       ? cleaned.map(h => ({ ...h, description: "" }))
       : habitCandidates.slice(0, 3).map(h => ({ habit: h, emoji: "🎯", description: "" }));
   } catch (e) {
     console.error("OpenAI JSON 파싱 실패", e);
     setAiHabitError("추천 중 오류 발생");
-    return habitCandidates.slice(0, 3).map(h => ({ habit: h, emoji: "🎯", description: "" }));
+    return habitCandidates.slice(0, 3).map(h => ({
+      habit: h,
+      emoji: "🎯",
+      description: "",
+    }));
   } finally {
     setAiHabitLoading(false);
   }
 }
+
 
 
 
