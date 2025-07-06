@@ -34,7 +34,13 @@ const habitEmojis: Record<string, string> = {
   휴식: "😌",
 };
 
-// 그림일기 시각화 매핑
+const NON_HABIT_KEYWORDS = [
+  "생각", "마음", "기록", "감사", "행복", "휴식", "자유", "시간", "정리", "계획", "정신", "긍정", "집중력", "의욕", "활력", "기분", "좋은 하루", "좋은 하루 보내기"
+];
+const ACTION_VERBS = [
+  "하기", "마시기", "걷기", "읽기", "스트레칭", "숨쉬기", "운동", "산책", "명상", "정리하기", "작성하기", "청소하기", "씻기", "준비하기"
+];
+
 const diaryVisualMap: Record<string, { animal: string; object: string; place: string; action: string }> = {
   산책: { animal: "강아지", object: "리드줄", place: "공원", action: "걷는 모습" },
   독서: { animal: "고양이", object: "책", place: "방", action: "앉아 책 읽기" },
@@ -42,7 +48,6 @@ const diaryVisualMap: Record<string, { animal: string; object: string; place: st
   물: { animal: "곰", object: "물컵", place: "주방", action: "물 마시는 동작" },
   명상: { animal: "부엉이", object: "방석", place: "조용한 방", action: "눈 감고 명상" },
   운동: { animal: "사자", object: "아령", place: "헬스장", action: "아령 들기" },
-  // 필요시 추가
 };
 
 function cleanAndDescribeHabits(rawLines: string[]): { habit: string; description: string }[] {
@@ -53,6 +58,8 @@ function cleanAndDescribeHabits(rawLines: string[]): { habit: string; descriptio
         .replace(/^\(?\s*습관\s*\)?-?/, "")
         .trim();
       if (!habit || habit.length > 20) return null;
+      if (NON_HABIT_KEYWORDS.some(word => habit.includes(word))) return null;
+      if (!ACTION_VERBS.some(verb => habit.includes(verb))) return null;
       let emoji = "🎯";
       for (const key in habitEmojis) {
         if (habit.includes(key)) {
@@ -103,7 +110,6 @@ function formatMonthDay(date: Date, dayIndex: number) {
   return `${mm}/${dd}`;
 }
 
-// 그림일기 프롬프트 생성 함수
 function getDiaryPrompt(routine: Routine) {
   const keys = Object.keys(diaryVisualMap);
   const key = keys.find(k => routine.task.includes(k));
@@ -113,7 +119,6 @@ function getDiaryPrompt(routine: Routine) {
 }
 
 export default function Page() {
-  // 로그인/관리자
   const [userId, setUserId] = useState("");
   const [userPw, setUserPw] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -151,12 +156,10 @@ export default function Page() {
   const [aiHabitLoading, setAiHabitLoading] = useState(false);
   const [aiHabitError, setAiHabitError] = useState<string | null>(null);
 
-  // 그림일기 자동 생성 관련 상태
   const [diaryImageUrl, setDiaryImageUrl] = useState<string | null>(null);
   const [diaryLoading, setDiaryLoading] = useState(false);
   const [diaryError, setDiaryError] = useState<string | null>(null);
 
-  // 유저 목록 가져오기
   const getRegisteredUsers = (): { id: string; pw: string }[] => {
     if (typeof window === "undefined") return [];
     const json = localStorage.getItem(storedUsersKey);
@@ -168,13 +171,11 @@ export default function Page() {
     }
   };
 
-  // 유저 목록 저장
   const saveRegisteredUsers = (users: { id: string; pw: string }[]) => {
     if (typeof window === "undefined") return;
     localStorage.setItem(storedUsersKey, JSON.stringify(users));
   };
 
-  // 사용자 로그인 처리
   const handleLogin = () => {
     if (!userId.trim() || !userPw.trim()) {
       setLoginError("아이디와 비밀번호를 모두 입력해주세요.");
@@ -205,7 +206,6 @@ export default function Page() {
     }
   };
 
-  // 로그아웃 처리
   const handleLogout = () => {
     setIsLoggedIn(false);
     setUserId("");
@@ -215,7 +215,6 @@ export default function Page() {
     setToast({ emoji: "👋", message: "로그아웃 되었습니다." });
   };
 
-  // 사용자 등록 처리 (관리자 전용)
   const [newUserId, setNewUserId] = useState("");
   const [newUserPw, setNewUserPw] = useState("");
   const [userAddError, setUserAddError] = useState("");
@@ -246,7 +245,6 @@ export default function Page() {
     if (userId) localStorage.setItem(diaryLogsKey, JSON.stringify(todayDiaryLogs));
   }, [todayDiaryLogs, diaryLogsKey, userId]);
 
-  // 드래그앤드롭 완료시 순서 변경 처리
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     const items = Array.from(routines);
@@ -256,7 +254,6 @@ export default function Page() {
     if (userId) localStorage.setItem(routinesKey, JSON.stringify(items));
   };
 
-  // 삭제 확인 모달 처리 (루틴 및 습관 아이템 클릭시)
   const handleRoutineDeleteConfirm = (idx: number) => {
     if (window.confirm("삭제하시겠습니까?")) {
       const copy = [...routines];
@@ -267,7 +264,6 @@ export default function Page() {
     }
   };
 
-  // GPT 습관 추천 요청 및 정제
   async function fetchHabitSuggestions(prevTask: string | null, nextTask: string | null): Promise<string[]> {
     const context = [prevTask, nextTask].filter(Boolean).join(", ");
     if (!context) return habitCandidates.slice(0, 3);
@@ -275,7 +271,7 @@ export default function Page() {
     try {
       setAiHabitLoading(true);
       setAiHabitError(null);
-      const prompt = `사용자의 이전 행동과 다음 행동: ${context}\n이 행동들 사이에 자연스럽게 연결할 수 있는 3개 이상의 5분 이내에 할 수 있는 웰빙 습관을 명사형으로 추천해 주세요. 각 습관은 30자 이내로 간결하며, 구체적인 행동과 시간(몇 분, 몇 회)을 포함하고, 친절한 설명도 포함하세요. 예시: '💨 2분 깊은 숨쉬기 - 긴장 완화 및 집중력 향상'`;
+      const prompt = `사용자의 이전 행동과 다음 행동: ${context}\n이 행동들 사이에 자연스럽게 연결할 수 있는 3개 이상의 5분 이내에 할 수 있는 웰빙 습관을 명사형(예: 마시기, 걷기, 읽기, 스트레칭 등 구체적 행동)으로만 추천해 주세요. 추상적 개념(예: 마음, 생각, 행복, 긍정, 집중력 등)은 절대 추천하지 마세요. 각 습관은 20자 이내로 간결하며, 구체적인 행동과 시간(몇 분, 몇 회)을 포함하고, 친절한 설명(30자 이내)도 포함하세요. 예시: '💨 2분 깊은 숨쉬기 - 긴장 완화 및 집중력 향상'`;
 
       const res = await fetch("/openai/chat", {
         method: "POST",
@@ -289,12 +285,12 @@ export default function Page() {
         return habitCandidates.slice(0, 3);
       }
 
-      // 정제 후 반환
       const lines = data.result
         .split(/\r?\n/)
         .filter((line: string) => line.trim() !== "")
         .map((line: string) => line.replace(/^[\d\.\-\)\s]+/, "").trim());
       const cleaned = cleanAndDescribeHabits(lines);
+      if (cleaned.length === 0) return habitCandidates.slice(0, 3);
       return cleaned.map(({ habit, description }) => `${habit} - ${description}`);
     } catch {
       setAiHabitError("추천 중 오류 발생");
@@ -317,7 +313,6 @@ export default function Page() {
     setHabitSuggestionIdx(idx);
   };
 
-  // 추가 습관 삽입 (앞 '(습관)-' 제거 + 스타일 적용)
   const addHabitBetween = (idx: number, habit: string) => {
     if (!isLoggedIn) return alert("로그인 후 이용해주세요.");
     const cleanedHabit = habit.replace(/\(\s*습관\s*\)-?/, "").trim();
@@ -336,7 +331,6 @@ export default function Page() {
     setHabitSuggestionIdx(null);
   };
 
-  // 통계용 데이터 계산 (완료율, 만족도 등)
   const filteredRoutines = routines.filter(() => true);
 
   const completionData = fullDays.map(day => {
@@ -352,7 +346,6 @@ export default function Page() {
     return { name: day, Satisfaction: avg };
   });
 
-  // 출석률 계산 (최근 3개월 날짜별 완료 갯수 기반)
   const attendanceData = useMemo(() => {
     const data: { date: string; count: number }[] = [];
     const startDate = new Date(currentDate);
@@ -368,7 +361,6 @@ export default function Page() {
     return data;
   }, [routines, currentDate]);
 
-  // 그림일기: 오늘 완료+만족도 높은 루틴/습관 추출
   const today = new Date().getDay();
   const todayRoutines = useMemo(
     () => routines.filter(r => r.day === fullDays[today === 0 ? 6 : today - 1] && r.done),
@@ -380,7 +372,6 @@ export default function Page() {
   );
   const topRoutine = sortedBySatisfaction[0];
 
-  // 그림일기 이미지 자동 생성
   useEffect(() => {
     let ignore = false;
     async function fetchDiaryImage() {
@@ -420,7 +411,6 @@ export default function Page() {
     return () => { ignore = true; };
   }, [topRoutine]);
 
-  // CSV 다운로드 (루틴 + 출석률 포함)
   function downloadCSV() {
     if (routines.length === 0) {
       alert("내보낼 데이터가 없습니다.");
@@ -609,7 +599,6 @@ export default function Page() {
               <Droppable droppableId="routines">
                 {(provided) => (
                   <div {...provided.droppableProps} ref={provided.innerRef} className="mt-4">
-                    {/* 새 루틴 추가 폼 */}
                     <div className="flex flex-col gap-2 mt-4">
                       <input
                         type="time"
@@ -645,7 +634,6 @@ export default function Page() {
                       </button>
                     </div>
 
-                    {/* 루틴 리스트 */}
                     {routines
                       .filter(r => r.day === selectedDay)
                       .map((routine, idx) => {
@@ -667,7 +655,6 @@ export default function Page() {
                                 className="border rounded p-4 flex justify-between items-center mt-2 cursor-pointer"
                                 style={provided.draggableProps.style}
                                 onClick={(e) => {
-                                  // 체크박스 클릭 방지
                                   if ((e.target as HTMLElement).tagName !== "INPUT") {
                                     handleRoutineDeleteConfirm(idx);
                                   }
@@ -695,7 +682,6 @@ export default function Page() {
                       })}
                     {provided.placeholder}
 
-                    {/* 습관 추천 영역 */}
                     {habitSuggestionIdx !== null && (
                       <div className="p-3 bg-blue-50 rounded space-y-2 relative mt-4">
                         <button
@@ -742,8 +728,6 @@ export default function Page() {
           {selectedTab === "tracker" && (
             <div className="mt-4 space-y-6">
               <h2 className="font-semibold text-center">습관 통계</h2>
-
-              {/* 출석률 캘린더 그래프 */}
               <div className="mb-6">
                 <h3 className="font-semibold mb-2 cursor-pointer" onClick={() => {/* TODO: 기간 필터 변경 */}}>
                   출석률 캘린더 (최근 3개월)
@@ -761,8 +745,6 @@ export default function Page() {
                   showWeekdayLabels
                 />
               </div>
-
-              {/* 완료율 및 만족도 그래프 */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <h3 className="font-semibold mb-2 cursor-pointer" onClick={() => {/* TODO: 기간 필터 변경 */}}>
@@ -791,7 +773,6 @@ export default function Page() {
                   </ResponsiveContainer>
                 </div>
               </div>
-
               <div className="text-center mt-4">
                 <button
                   onClick={downloadCSV}
