@@ -4,6 +4,8 @@ export async function POST(req: Request) {
   try {
     const { prevTask, nextTask } = await req.json();
 
+    const context = [prevTask, nextTask].filter(Boolean).join(", ");
+
     const prompt = `
 앞뒤 활동: ${context}
 
@@ -26,7 +28,6 @@ export async function POST(req: Request) {
   예: ["3분 스트레칭", "2분 걷기", "1분 호흡"]
 `;
 
-
     const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         model: 'gpt-4',
-        messages: [{ role: 'user', content: systemPrompt }],
+        messages: [{ role: 'system', content: prompt }],
         temperature: 0.4,
       }),
     });
@@ -48,12 +49,20 @@ export async function POST(req: Request) {
     }
 
     const raw = data.choices?.[0]?.message?.content ?? '';
-    const lines = raw
-      .split(/\r?\n/)
-      .map((l: string) => l.trim())
-      .filter((l: string) => /^\d+분\s?\S{1,8}$/.test(l)); // 정규식으로 형식 검증
 
-    return NextResponse.json({ result: lines });
+    let result: string[] = [];
+
+    try {
+      result = JSON.parse(raw);
+    } catch (e) {
+      // fallback: 정규식 기반 추출
+      result = raw
+        .split(/\r?\n/)
+        .map((l: string) => l.trim())
+        .filter((l: string) => /^\d+분\s?\S{1,8}$/.test(l));
+    }
+
+    return NextResponse.json({ result });
   } catch (error) {
     console.error("Chat API Error:", error);
     return NextResponse.json({ error: '서버 에러' }, { status: 500 });
