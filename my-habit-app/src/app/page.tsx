@@ -315,25 +315,47 @@ export default function Page() {
   nextTask: string | null,
 ): Promise<{ habit: string; emoji: string; description: string }[]> {
   const context = [prevTask, nextTask].filter(Boolean).join(", ");
-  let habits: string[] = [];
+  if (!context) {
+    return habitCandidates.slice(0, 3).map(h => ({
+      habit: h,
+      emoji: "🎯",
+      description: "",
+    }));
+  }
 
   try {
+    setAiHabitLoading(true);
+    setAiHabitError(null);
+
+    const prompt = `사용자의 이전 행동과 다음 행동: ${context}
+이 행동들 사이에 자연스럽게 연결할 수 있는 3개 이상의 5분 이내에 할 수 있는 웰빙 습관을 명사형(예: 마시기, 걷기, 읽기, 스트레칭 등 구체적 행동)으로만 추천해 주세요. 추상적 개념(예: 마음, 생각, 행복, 긍정, 집중력 등)은 절대 추천하지 마세요. 각 습관은 20자 이내로 간결하며, 구체적인 행동과 시간(몇 분, 몇 회)을 포함하고, 친절한 설명(30자 이내)도 포함하세요. 예시: '💨 2분 깊은 숨쉬기 - 긴장 완화 및 집중력 향상'`;
+
     const res = await fetch("/openai/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: `앞뒤 활동: ${context} ...` }),
+      body: JSON.stringify({ prompt }),
     });
+
     const data = await res.json();
-    habits = JSON.parse(data.result);
+
+    const lines = data.result
+      .split(/\r?\n/)
+      .filter((line: string) => line.trim() !== "")
+      .map((line: string) => line.replace(/^[\d\.\-\)\s]+/, "").trim());
+
+    const cleaned = cleanAndDescribeHabits(lines);
+    return cleaned.length > 0
+      ? cleaned.map(h => ({ ...h, description: "" }))
+      : habitCandidates.slice(0, 3).map(h => ({ habit: h, emoji: "🎯", description: "" }));
   } catch (e) {
     console.error("OpenAI JSON 파싱 실패", e);
-    return [];
+    setAiHabitError("추천 중 오류 발생");
+    return habitCandidates.slice(0, 3).map(h => ({ habit: h, emoji: "🎯", description: "" }));
+  } finally {
+    setAiHabitLoading(false);
   }
-
-  return habits
-    .filter((h) => /^\d+분\s?\S{1,8}$/.test(h)) // 3분 스트레칭 형태만 허용
-    .map((habit) => ({ habit, emoji: "", description: "" }));
 }
+
 
 
   const handleFetchHabitSuggestions = async (idx: number) => {
