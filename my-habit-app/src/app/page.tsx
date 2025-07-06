@@ -61,37 +61,31 @@ function cleanAndDescribeHabits(
   rawLines: string[],
 ): { habit: string; emoji: string }[] {
   return rawLines
-    .map(line => {
-      // 마크다운 및 괄호/설명 제거
-      let cleaned = line
-        .replace(/^[\*\-\s]+/, "")        // 앞쪽 *, -, 공백 제거
-        .replace(/\*\*/g, "")             // ** 제거
-        .replace(/\*/g, "")               // * 제거
-        .replace(/\(.+?\)/g, "")          // 괄호 제거
-        .replace(/\s{2,}/g, " ")          // 2칸 이상 공백
+    .map((line) => {
+      // 1. 마크다운, 이모지, 특수문자 제거
+      let habit = line
+        .replace(/^[\*\-\s]+/, "") // 앞쪽 *, - 제거
+        .replace(/\*\*/g, "")      // ** 제거
+        .replace(/^[\p{Emoji}]\s*/u, "") // 앞 이모지 제거
+        .replace(/\(.+?\)/g, "")   // 괄호 속 텍스트 제거
+        .replace(/[:\-].*$/, "")   // ':' 또는 '-' 이후 설명 제거
+        .replace(/\s+/g, " ")      // 공백 정리
         .trim();
 
-      // ':' 또는 '-' 기준으로 앞부분만 사용
-      cleaned = cleaned.split(/[:\-]/)[0].trim();
+      // 2. 명사형/행동 중심 필터링
+      if (!habit || habit.length > 20) return null;
+      if (NON_HABIT_KEYWORDS.some(word => habit.includes(word))) return null;
+      if (!ACTION_VERBS.some(verb => habit.includes(verb))) return null;
 
-      // "N분 행동" 또는 "N회 행동" 패턴 추출
-      const match = cleaned.match(/(\d+)(분|회)\s*([가-힣a-zA-Z]+)/);
-      if (!match) return null;
-
-      const [_, amount, unit, action] = match;
-      const shortHabit = `${amount}${unit} ${action}`;
-
-      // 추상적 키워드 제외
-      if (NON_HABIT_KEYWORDS.some(word => shortHabit.includes(word))) return null;
-      if (!ACTION_VERBS.some(verb => shortHabit.includes(verb))) return null;
-
-      return { habit: shortHabit, emoji: "" }; // emoji 비우기
+      // 3. 이모지는 삭제, 텍스트만 사용
+      return { habit, emoji: "🎯" }; // 필요하면 emoji도 추출 가능
     })
     .filter(
       (item): item is { habit: string; emoji: string } =>
         !!item && item.habit.length > 0,
     );
 }
+
 
 
       // 필터링 기준
