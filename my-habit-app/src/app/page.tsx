@@ -62,41 +62,49 @@ function cleanAndDescribeHabits(
 ): { habit: string; emoji: string }[] {
   return rawLines
     .map(line => {
-      // 앞쪽 *, -, 공백 제거
-      let habit = line
-        .replace(/^[\*\-\s]+/, "")
-        .replace(/\*\*/g, "")
-        .replace(/\*/g, "")
-        .replace(/:/g, "")
-        .replace(/\(.+?\)/g, "")
-        .replace(/\s{2,}/g, " ")
+      // 마크다운 및 설명 제거
+      let cleaned = line
+        .replace(/^[\*\-\s]+/, "")      // 앞쪽 *, -, 공백 제거
+        .replace(/\*\*/g, "")           // ** 제거
+        .replace(/\*/g, "")             // * 제거
+        .replace(/\(.+?\)/g, "")        // 괄호 설명 제거
+        .replace(/\s{2,}/g, " ")        // 2칸 이상 공백
         .replace(/\[\(?\s*습관\s*\)?-?\]/g, "")
         .replace(/^\(?\s*습관\s*\)?-?/, "")
         .trim();
 
-      // '💨 2분 숨쉬기 - 설명' 형태에서 '💨 2분 숨쉬기'만 남기기
-      habit = habit.split(/[:\-]/)[0].trim();
+      // '3분 스트레칭: 설명' or '3분 스트레칭 - 설명' → '3분 스트레칭'
+      cleaned = cleaned.split(/[:\-]/)[0].trim();
 
-      // 이모지를 추출
-      const emojiMatch = habit.match(/^[\p{Emoji}]/u);
-      const emoji = emojiMatch ? emojiMatch[0] : "🎯";
+      // 'N분 행동' 또는 'N회 행동' 매칭
+      const match = cleaned.match(/(\d+)(분|회)\s*([가-힣a-zA-Z]+)/);
+      if (!match) return null;
 
-      // 이모지를 제외한 텍스트만 추출
-      const text = habit.replace(/^[\p{Emoji}]\s*/u, "");
+      const [_, amount, unit, action] = match;
+      const shortHabit = `${amount}${unit} ${action}`;
 
-      if (!text || text.length > 20) return null;
-      if (NON_HABIT_KEYWORDS.some(word => text.includes(word))) return null;
-      if (!ACTION_VERBS.some(verb => text.includes(verb))) return null;
+      // 이모지 매핑
+      let emoji = "🎯";
+      for (const key in habitEmojis) {
+        if (shortHabit.includes(key)) {
+          emoji = habitEmojis[key];
+          break;
+        }
+      }
 
-      return { habit: `${emoji} ${text}`, emoji };
+      // 필터링 기준
+      if (
+        NON_HABIT_KEYWORDS.some(word => shortHabit.includes(word)) ||
+        !ACTION_VERBS.some(verb => shortHabit.includes(verb))
+      ) return null;
+
+      return { habit: `${emoji} ${shortHabit}`, emoji };
     })
     .filter(
       (item): item is { habit: string; emoji: string } =>
         !!item && item.habit.length > 0,
     );
 }
-
-
 
 function Toast({ message, emoji, onClose }: { message: string; emoji: string; onClose: () => void }) {
   useEffect(() => {
