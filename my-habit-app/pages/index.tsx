@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import RoutineCard from '@/components/ui/RoutineCard';
 import StatisticsCharts from '@/components/ui/StatisticsCharts';
 import DiaryView from '@/components/ui/DiaryView';
+import WeekdaySelector from '@/components/ui/WeekdaySelector';
+import TabSwitcher from '@/components/ui/TabSwitcher';
+import RoutineInputForm from '@/components/ui/RoutineInputForm';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -11,40 +14,16 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-type SupabaseRoutine = {
-  id: number;
-  day: string;
-  start: string;
-  end: string;
-  task: string;
-  done: boolean;
-  rating: number | null;
-  is_habit?: boolean;
-  description?: string;
-};
-
-type Routine = {
-  id: string;
-  day: string;
-  start: string;
-  end: string;
-  task: string;
-  done: boolean;
-  rating: number;
-  isHabit?: boolean;
-  description?: string;
-  emoji?: string;
-};
-
 export default function HomePage() {
-  const [routines, setRoutines] = useState<Routine[]>([]);
-  const [suggestions, setSuggestions] = useState<Record<string, string[]>>({});
-  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
-  const [activeCardId, setActiveCardId] = useState<string | null>(null);
-  const [selectedDay] = useState('월');
-  const [diaryImageUrl] = useState<string | null>(null);
+  const [routines, setRoutines] = useState([]);
+  const [suggestions, setSuggestions] = useState({});
+  const [loadingStates, setLoadingStates] = useState({});
+  const [activeCardId, setActiveCardId] = useState(null);
+  const [selectedDay, setSelectedDay] = useState('월');
+  const [activeTab, setActiveTab] = useState('routine');
+  const [diaryImageUrl] = useState(null);
   const [diaryLoading] = useState(false);
-  const [diaryError] = useState<string | null>(null);
+  const [diaryError] = useState(null);
 
   useEffect(() => {
     const fetchRoutines = async () => {
@@ -53,12 +32,12 @@ export default function HomePage() {
         .select('*')
         .order('created_at', { ascending: true });
 
-      if (error || !data) {
-        console.error('루틴 불러오기 오류:', error?.message);
+      if (error) {
+        console.error('루틴 불러오기 오류:', error.message);
         return;
       }
 
-      const mapped: Routine[] = data.map((r: SupabaseRoutine) => ({
+      const mapped = data.map((r) => ({
         id: r.id.toString(),
         day: r.day,
         start: r.start,
@@ -75,22 +54,22 @@ export default function HomePage() {
     fetchRoutines();
   }, []);
 
-  const handleDelete = (id: string) => {
-    setRoutines(prev => prev.filter(r => r.id !== id));
+  const handleDelete = (id) => {
+    setRoutines((prev) => prev.filter((r) => r.id !== id));
   };
 
-  const handleRate = (id: string, rating: number) => {
-    setRoutines(prev =>
-      prev.map(r => (r.id === id ? { ...r, rating } : r))
+  const handleRate = (id, rating) => {
+    setRoutines((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, rating } : r))
     );
   };
 
-  const handleSuggestHabit = async (id: string) => {
-    const routine = routines.find(r => r.id === id);
-    const nextIndex = routines.findIndex(r => r.id === id) + 1;
+  const handleSuggestHabit = async (id) => {
+    const routine = routines.find((r) => r.id === id);
+    const nextIndex = routines.findIndex((r) => r.id === id) + 1;
     const next = routines[nextIndex];
 
-    setLoadingStates(prev => ({ ...prev, [id]: true }));
+    setLoadingStates((prev) => ({ ...prev, [id]: true }));
     setActiveCardId(id);
 
     try {
@@ -103,17 +82,17 @@ export default function HomePage() {
       });
 
       const { result } = await res.json();
-      setSuggestions(prev => ({ ...prev, [id]: result[0] }));
+      setSuggestions((prev) => ({ ...prev, [id]: result[0] }));
     } catch (error) {
       console.error('습관 추천 오류:', error);
     } finally {
-      setLoadingStates(prev => ({ ...prev, [id]: false }));
+      setLoadingStates((prev) => ({ ...prev, [id]: false }));
     }
   };
 
-  const handleAddHabit = (id: string, habit: string) => {
-    const index = routines.findIndex(r => r.id === id);
-    const newHabit: Routine = {
+  const handleAddHabit = (id, habit) => {
+    const index = routines.findIndex((r) => r.id === id);
+    const newHabit = {
       id: Date.now().toString(),
       day: routines[index].day,
       start: routines[index].end,
@@ -128,13 +107,23 @@ export default function HomePage() {
     setRoutines(updated);
   };
 
+  const handleAddRoutine = (routine) => {
+    setRoutines((prev) => [...prev, routine]);
+  };
+
   const downloadCSV = () => {
     const headers = ['날짜', '시작', '종료', '활동', '만족도'];
-    const rows = routines.map(r => [
-      r.day, r.start, r.end, r.task, r.rating.toString()
+    const rows = routines.map((r) => [
+      r.day,
+      r.start,
+      r.end,
+      r.task,
+      r.rating.toString(),
     ]);
-    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-    const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+    const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], {
+      type: 'text/csv;charset=utf-8;',
+    });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `habit_${new Date().toISOString().slice(0, 10)}.csv`;
@@ -142,8 +131,8 @@ export default function HomePage() {
   };
 
   const completionData = useMemo(() => {
-    const grouped: Record<string, { total: number; done: number }> = {};
-    routines.forEach(r => {
+    const grouped = {};
+    routines.forEach((r) => {
       if (!grouped[r.day]) grouped[r.day] = { total: 0, done: 0 };
       grouped[r.day].total += 1;
       if (r.done) grouped[r.day].done += 1;
@@ -164,17 +153,16 @@ export default function HomePage() {
       기타: 0,
     };
 
-    routines.forEach(r => {
+    routines.forEach((r) => {
       if (!r.isHabit) return;
       const t = r.task;
-
       if (t.includes('운동') || t.includes('스트레칭') || t.includes('산책') || t.includes('요가')) {
         result.운동++;
       } else if (t.includes('명상') || t.includes('호흡') || t.includes('휴식') || t.includes('감정일기')) {
         result['정신 건강']++;
       } else if (t.includes('공부') || t.includes('학습') || t.includes('독서') || t.includes('코딩')) {
         result.공부++;
-      } else if (t.includes('업무') || t.includes('회의') || t.includes('보고서') || t.includes('일')) {
+      } else if (t.includes('업무') || t.includes('회의') || t.includes('보고서')) {
         result.업무++;
       } else {
         result.기타++;
@@ -185,11 +173,11 @@ export default function HomePage() {
   }, [routines]);
 
   const weeklyTrend = useMemo(() => {
-    const weeks: Record<string, { count: number; done: number; totalRating: number }> = {
+    const weeks = {
       'Week 1': { count: 0, done: 0, totalRating: 0 },
     };
 
-    routines.forEach(r => {
+    routines.forEach((r) => {
       const week = 'Week 1';
       weeks[week].count += 1;
       if (r.done) weeks[week].done += 1;
@@ -204,43 +192,52 @@ export default function HomePage() {
   }, [routines]);
 
   const topRoutine = routines
-    .filter(r => r.day === selectedDay && r.done)
+    .filter((r) => r.day === selectedDay && r.done)
     .sort((a, b) => b.rating - a.rating)[0] || null;
 
   return (
-    <main className="max-w-4xl mx-auto p-6 space-y-8">
-      <h1 className="text-2xl font-bold">나의 웰빙 루틴</h1>
+    <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <WeekdaySelector selectedDay={selectedDay} onChange={setSelectedDay} />
+      <TabSwitcher activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {routines.map(routine => (
-        <RoutineCard
-          key={routine.id}
-          routine={routine}
-          onDelete={handleDelete}
-          onRate={handleRate}
-          onSuggestHabit={handleSuggestHabit}
-          aiHabitSuggestions={suggestions[routine.id] ?? []}
-          isLoading={loadingStates[routine.id] ?? false}
-          isActive={activeCardId === routine.id}
-          onAddHabit={handleAddHabit}
+      {activeTab === 'routine' && (
+        <>
+          <RoutineInputForm selectedDay={selectedDay} onAdd={handleAddRoutine} />
+          {routines.map((routine) => (
+            <RoutineCard
+              key={routine.id}
+              routine={routine}
+              onDelete={handleDelete}
+              onRate={handleRate}
+              onSuggestHabit={handleSuggestHabit}
+              aiHabitSuggestions={suggestions[routine.id] ?? []}
+              isLoading={loadingStates[routine.id] ?? false}
+              isActive={activeCardId === routine.id}
+              onAddHabit={handleAddHabit}
+            />
+          ))}
+        </>
+      )}
+
+      {activeTab === 'stats' && (
+        <StatisticsCharts
+          completionData={completionData}
+          habitTypeData={habitTypeData}
+          weeklyTrend={weeklyTrend}
+          downloadCSV={downloadCSV}
+          COLORS={['#6366f1', '#ec4899', '#facc15']}
         />
-      ))}
+      )}
 
-      <StatisticsCharts
-        completionData={completionData}
-        habitTypeData={habitTypeData}
-        weeklyTrend={weeklyTrend}
-        downloadCSV={downloadCSV}
-        COLORS={['#6366f1', '#ec4899', '#facc15']}
-      />
-
-      <h2 className="text-xl font-semibold mt-10">{selectedDay}요일 그림일기</h2>
-      <DiaryView
-        topRoutine={topRoutine}
-        diaryLoading={diaryLoading}
-        diaryError={diaryError}
-        diaryImageUrl={diaryImageUrl}
-        selectedDay={selectedDay}
-      />
+      {activeTab === 'diary' && (
+        <DiaryView
+          topRoutine={topRoutine}
+          diaryLoading={diaryLoading}
+          diaryError={diaryError}
+          diaryImageUrl={diaryImageUrl}
+          selectedDay={selectedDay}
+        />
+      )}
     </main>
   );
 }
