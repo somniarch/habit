@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import RoutineCard from '@/components/ui/RoutineCard';
 import StatisticsCharts from '@/components/ui/StatisticsCharts';
 import DiaryView from '@/components/ui/DiaryView';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js'; 
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
