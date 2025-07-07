@@ -48,11 +48,19 @@ export default function HomePage() {
       done: true,
       rating: 4,
       isHabit: true
+    },
+    {
+      id: '2',
+      day: '월',
+      start: '10:30',
+      end: '11:30',
+      task: '러닝',
+      done: false,
+      rating: 0,
     }
   ]);
 
   const selectedDay = '월';
-  const routine = routines[0];
 
   const completionData = useMemo(() => [{ name: '월', value: 80 }, { name: '화', value: 90 }], []);
   const habitTypeData = useMemo(() => [{ name: '스트레칭', value: 5 }, { name: '걷기', value: 3 }], []);
@@ -94,13 +102,31 @@ export default function HomePage() {
     setRoutines(routines.filter((r) => r.id !== id));
   };
 
-  const handleFetchHabitSuggestions = (id: string) => {
+  const handleFetchHabitSuggestions = async (targetId: string) => {
+    const idx = routines.findIndex((r) => r.id === targetId);
+    if (idx === -1) return;
+
+    const prev = routines[idx]?.task || '';
+    const next = routines[idx + 1]?.task || '';
+
     setAiHabitLoading(true);
-    setSuggestTargetId(id);
-    setTimeout(() => {
-      setAiHabitSuggestions(['3분 걷기', '2분 숨쉬기']);
+    setSuggestTargetId(targetId);
+
+    try {
+      const res = await fetch('/openai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prevTask: prev, nextTask: next }),
+      });
+
+      const data = await res.json();
+      setAiHabitSuggestions(data.result || []);
+    } catch (e) {
+      console.error('습관 추천 실패:', e);
+      setAiHabitSuggestions([]);
+    } finally {
       setAiHabitLoading(false);
-    }, 1000);
+    }
   };
 
   const addHabitBetween = (id: string, habit: string) => {
@@ -156,6 +182,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6 space-y-6">
       <h1 className="text-2xl font-bold">Welcome, {userId}</h1>
+
       <StatisticsCharts
         completionData={completionData}
         habitTypeData={habitTypeData}
@@ -163,6 +190,7 @@ export default function HomePage() {
         downloadCSV={downloadCSV}
         COLORS={COLORS}
       />
+
       <DiaryView
         topRoutine={topRoutine}
         diaryImageUrl={diaryImageUrl}
@@ -170,11 +198,21 @@ export default function HomePage() {
         diaryError={diaryError}
         selectedDay={selectedDay}
       />
-      <RoutineCard
-        routine={routine}
-        onDelete={handleRoutineDeleteConfirm}
-        onRate={handleRateChange}
-      />
+
+      {routines.map((routine) => (
+        <RoutineCard
+          key={routine.id}
+          routine={routine}
+          onDelete={handleRoutineDeleteConfirm}
+          onRate={handleRateChange}
+          onSuggestHabit={handleFetchHabitSuggestions}
+          isActive={suggestTargetId === routine.id}
+          aiHabitSuggestions={suggestTargetId === routine.id ? aiHabitSuggestions : []}
+          isLoading={aiHabitLoading && suggestTargetId === routine.id}
+          onAddHabit={addHabitBetween}
+        />
+      ))}
+
       <HabitSuggestion
         aiHabitSuggestions={aiHabitSuggestions}
         habitCandidates={['2분 걷기', '1분 물마시기']}
