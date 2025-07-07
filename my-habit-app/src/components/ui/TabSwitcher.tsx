@@ -2,31 +2,32 @@
 
 import React from 'react';
 
-type TabType = 'routine' | 'stats' | 'diary';
-
 type Props = {
-  activeTab: TabType;
-  setActiveTab: React.Dispatch<React.SetStateAction<TabType>>;
+  currentTab: 'routine' | 'statistics' | 'diary';
+  onTabChange: (tab: 'routine' | 'statistics' | 'diary') => void;
 };
 
-export default function TabSwitcher({ activeTab, setActiveTab }: Props) {
-  const tabs: { label: string; value: TabType }[] = [
-    { label: '루틴 및 습관', value: 'routine' },
-    { label: '통계', value: 'stats' },
-    { label: '오늘 일기', value: 'diary' },
-  ];
+export default function TabSwitcher({ currentTab, onTabChange }: Props) {
+  const tabs = [
+    { key: 'routine', label: '루틴 및 습관' },
+    { key: 'statistics', label: '통계' },
+    { key: 'diary', label: '오늘 일기' },
+  ] as const;
 
   return (
-    <div className="flex justify-around text-sm font-medium rounded-full bg-gray-100 p-1">
-      {tabs.map((tab) => (
+    <div className="flex justify-center gap-4 mt-4 mb-6">
+      {tabs.map(({ key, label }) => (
         <button
-          key={tab.value}
-          onClick={() => setActiveTab(tab.value)}
-          className={`px-4 py-2 rounded-full ${
-            activeTab === tab.value ? 'bg-black text-white' : 'text-gray-600'
-          }`}
+          key={key}
+          onClick={() => onTabChange(key)}
+          className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 shadow-sm
+            ${
+              currentTab === key
+                ? 'bg-black text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
         >
-          {tab.label}
+          {label}
         </button>
       ))}
     </div>
