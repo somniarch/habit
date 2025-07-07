@@ -2,31 +2,31 @@
 
 import React from 'react';
 
+type TabType = 'routine' | 'stats' | 'diary';
+
 type Props = {
-  currentTab: 'routine' | 'statistics' | 'diary';
-  onTabChange: (tab: 'routine' | 'statistics' | 'diary') => void;
+  activeTab: TabType;
+  setActiveTab: React.Dispatch<React.SetStateAction<TabType>>;
 };
 
-export default function TabSwitcher({ currentTab, onTabChange }: Props) {
-  const tabs: { label: string; key: 'routine' | 'statistics' | 'diary' }[] = [
-    { label: '루틴 및 습관', key: 'routine' },
-    { label: '통계', key: 'statistics' },
-    { label: '오늘 일기', key: 'diary' },
+export default function TabSwitcher({ activeTab, setActiveTab }: Props) {
+  const tabs: { label: string; value: TabType }[] = [
+    { label: '루틴 및 습관', value: 'routine' },
+    { label: '통계', value: 'stats' },
+    { label: '오늘 일기', value: 'diary' },
   ];
 
   return (
-    <div className="flex justify-center gap-3 my-4">
-      {tabs.map(({ label, key }) => (
+    <div className="flex justify-around text-sm font-medium rounded-full bg-gray-100 p-1">
+      {tabs.map((tab) => (
         <button
-          key={key}
-          onClick={() => onTabChange(key)}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-            currentTab === key
-              ? 'bg-black text-white'
-              : 'bg-gray-200 text-gray-800'
+          key={tab.value}
+          onClick={() => setActiveTab(tab.value)}
+          className={`px-4 py-2 rounded-full ${
+            activeTab === tab.value ? 'bg-black text-white' : 'text-gray-600'
           }`}
         >
-          {label}
+          {tab.label}
         </button>
       ))}
     </div>
