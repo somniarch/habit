@@ -1,3 +1,4 @@
+/* pages/index.tsx */
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -34,7 +35,6 @@ export default function HomePage() {
       setLoginError('아이디와 비밀번호를 입력해주세요.');
       return;
     }
-    // 간단한 로그인 로직 (임시)
     if (userId === 'test' && userPw === '1234') {
       setIsLoggedIn(true);
       setLoginError('');
@@ -48,7 +48,6 @@ export default function HomePage() {
       setUserAddError('아이디와 비밀번호를 입력해주세요.');
       return;
     }
-    // 임시 사용자 추가 로직
     setNewUserId('');
     setNewUserPw('');
     setUserAddError('');
