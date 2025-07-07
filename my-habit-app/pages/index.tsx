@@ -14,7 +14,19 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// 타입 정의
+// Supabase 원형 타입
+type SupabaseRoutine = {
+  id: number;
+  day: string;
+  start: string;
+  end: string;
+  task: string;
+  done: boolean;
+  rating: number | null;
+  is_habit?: boolean;
+  description?: string;
+};
+
 type Routine = {
   id: string;
   day: string;
@@ -50,7 +62,7 @@ export default function HomePage() {
         return;
       }
 
-      const mapped: Routine[] = data.map((r: any) => ({
+      const mapped: Routine[] = (data as SupabaseRoutine[]).map((r) => ({
         id: r.id.toString(),
         day: r.day,
         start: r.start,
