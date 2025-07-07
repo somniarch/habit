@@ -146,7 +146,7 @@ export default function HomePage() {
   const habitTypeData = useMemo(() => {
     const result = {
       운동: 0,
-      정신 건강: 0,
+      '정신 건강': 0,
       공부: 0,
       업무: 0,
       기타: 0,
