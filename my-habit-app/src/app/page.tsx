@@ -9,35 +9,6 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautif
 import CalendarHeatmap from "react-calendar-heatmap";
 import "react-calendar-heatmap/dist/styles.css";
 
-// ✅ 이 함수는 컴포넌트 밖에서 선언해야 오류가 안 납니다.
-async function fetchHabitsFromAPI(prompt: string): Promise<{ habit: string; emoji: string }[]> {
-  try {
-    const res = await fetch("/openai/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }),
-    });
-
-    const data = await res.json();
-
-    let habits: string[] = [];
-
-    try {
-      habits = JSON.parse(data.result);
-    } catch (e) {
-      console.error("OpenAI JSON 파싱 실패", e);
-      return [];
-    }
-
-    return habits
-      .filter((h) => /^\d+분\s?\S{1,8}$/.test(h)) // 예: 3분 스트레칭
-      .map((habit) => ({ habit, emoji: "" }));
-  } catch (e) {
-    console.error("API 요청 실패", e);
-    return [];
-  }
-}
-
 type Routine = {
   day: string;
   start: string;
@@ -46,8 +17,6 @@ type Routine = {
   done: boolean;
   rating: number;
   isHabit?: boolean;
-  description?: string;
-  emoji?: string;
 };
 
 const habitCandidates = ["깊은 숨 2분", "물 한잔", "짧은 산책", "스트레칭"];
@@ -86,33 +55,28 @@ const diaryVisualMap: Record<string, { animal: string; object: string; place: st
   운동: { animal: "사자", object: "아령", place: "헬스장", action: "아령 들기" },
 };
 
-function cleanAndDescribeHabits(
-  rawLines: string[],
-): { habit: string; emoji: string }[] {
+function cleanAndDescribeHabits(rawLines: string[]): { habit: string; description: string }[] {
   return rawLines
-    .map((line) => {
-      // 1. 마크다운, 이모지, 특수문자 제거
-      let habit = line
-        .replace(/^[\*\-\s]+/, "") // 앞쪽 *, - 제거
-        .replace(/\*\*/g, "")      // ** 제거
-        .replace(/^[\p{Emoji}]\s*/u, "") // 앞 이모지 제거
-        .replace(/\(.+?\)/g, "")   // 괄호 속 텍스트 제거
-        .replace(/[:\-].*$/, "")   // ':' 또는 '-' 이후 설명 제거
-        .replace(/\s+/g, " ")      // 공백 정리
+    .map(line => {
+      let habit = line.replace(/\*\*/g, "")
+        .replace(/\[\(?\s*습관\s*\)?-?\]/g, "")
+        .replace(/^\(?\s*습관\s*\)?-?/, "")
         .trim();
-
-      // 2. 명사형/행동 중심 필터링
       if (!habit || habit.length > 20) return null;
       if (NON_HABIT_KEYWORDS.some(word => habit.includes(word))) return null;
       if (!ACTION_VERBS.some(verb => habit.includes(verb))) return null;
-
-      // 3. 이모지는 삭제, 텍스트만 사용
-      return { habit, emoji: "🎯" }; // 필요하면 emoji도 추출 가능
+      let emoji = "🎯";
+      for (const key in habitEmojis) {
+        if (habit.includes(key)) {
+          emoji = habitEmojis[key];
+          break;
+        }
+      }
+      // 명사형 설명 랜덤 선택
+      const description = `${emoji} ${descriptionNouns[Math.floor(Math.random() * descriptionNouns.length)]}`;
+      return { habit, description };
     })
-    .filter(
-      (item): item is { habit: string; emoji: string } =>
-        !!item && item.habit.length > 0,
-    );
+    .filter((item): item is { habit: string; description: string } => !!item && item.habit.length > 0);
 }
 
 function Toast({ message, emoji, onClose }: { message: string; emoji: string; onClose: () => void }) {
@@ -183,15 +147,24 @@ export default function Page() {
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [weekNum, setWeekNum] = useState(1);
-  const [selectedDay, setSelectedDay] = useState("월");
+  const [selectedDay, setSelectedDay] = useState(fullDays[0]);
   const [selectedTab, setSelectedTab] = useState<"routine-habit" | "tracker" | "today-diary">("routine-habit");
 
-  const [routines, setRoutines] = useState<Routine[]>([]);
+  const [routines, setRoutines] = useState<Routine[]>(() => {
+    if (typeof window === "undefined" || !userId) return [];
+    const saved = localStorage.getItem(routinesKey);
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [newRoutine, setNewRoutine] = useState({ start: "08:00", end: "09:00", task: "" });
   const [habitSuggestionIdx, setHabitSuggestionIdx] = useState<number | null>(null);
-  const [todayDiaryLogs, setTodayDiaryLogs] = useState<Record<string, string[]>>({});
+  const [todayDiaryLogs, setTodayDiaryLogs] = useState<Record<string, string[]>>(() => {
+    if (typeof window === "undefined" || !userId) return {};
+    const saved = localStorage.getItem(diaryLogsKey);
+    return saved ? JSON.parse(saved) : {};
+  });
 
-  const [aiHabitSuggestions, setAiHabitSuggestions] = useState<{ habit: string; emoji: string; description: string }[]>([]);
+  const [aiHabitSuggestions, setAiHabitSuggestions] = useState<string[]>([]);
   const [aiHabitLoading, setAiHabitLoading] = useState(false);
   const [aiHabitError, setAiHabitError] = useState<string | null>(null);
 
@@ -199,14 +172,12 @@ export default function Page() {
   const [diaryLoading, setDiaryLoading] = useState(false);
   const [diaryError, setDiaryError] = useState<string | null>(null);
 
-  const [newUserId, setNewUserId] = useState("");
-  const [newUserPw, setNewUserPw] = useState("");
-  const [userAddError, setUserAddError] = useState("");
-
   const getRegisteredUsers = (): { id: string; pw: string }[] => {
     if (typeof window === "undefined") return [];
+    const json = localStorage.getItem(storedUsersKey);
+    if (!json) return [];
     try {
-      return JSON.parse(localStorage.getItem(storedUsersKey) || "[]");
+      return JSON.parse(json);
     } catch {
       return [];
     }
@@ -222,7 +193,6 @@ export default function Page() {
       setLoginError("아이디와 비밀번호를 모두 입력해주세요.");
       return;
     }
-
     if (adminModeActive) {
       if (userId === adminId && userPw === adminPw) {
         setIsLoggedIn(true);
@@ -235,7 +205,6 @@ export default function Page() {
       }
       return;
     }
-
     const users = getRegisteredUsers();
     const found = users.find((u) => u.id === userId && u.pw === userPw);
     if (found) {
@@ -258,18 +227,20 @@ export default function Page() {
     setToast({ emoji: "👋", message: "로그아웃 되었습니다." });
   };
 
+  const [newUserId, setNewUserId] = useState("");
+  const [newUserPw, setNewUserPw] = useState("");
+  const [userAddError, setUserAddError] = useState("");
+
   const handleAddUser = () => {
     if (!newUserId.trim() || !newUserPw.trim()) {
       setUserAddError("아이디와 비밀번호를 모두 입력해주세요.");
       return;
     }
-
     const users = getRegisteredUsers();
     if (users.find((u) => u.id === newUserId)) {
       setUserAddError("이미 존재하는 아이디입니다.");
       return;
     }
-
     const updated = [...users, { id: newUserId, pw: newUserPw }];
     saveRegisteredUsers(updated);
     setUserAddError("");
@@ -279,22 +250,8 @@ export default function Page() {
   };
 
   useEffect(() => {
-    if (typeof window !== "undefined" && userId) {
-      const saved = localStorage.getItem(routinesKey);
-      setRoutines(saved ? JSON.parse(saved) : []);
-    }
-  }, [userId, routinesKey]);
-
-  useEffect(() => {
     if (userId) localStorage.setItem(routinesKey, JSON.stringify(routines));
   }, [routines, routinesKey, userId]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && userId) {
-      const saved = localStorage.getItem(diaryLogsKey);
-      setTodayDiaryLogs(saved ? JSON.parse(saved) : {});
-    }
-  }, [userId, diaryLogsKey]);
 
   useEffect(() => {
     if (userId) localStorage.setItem(diaryLogsKey, JSON.stringify(todayDiaryLogs));
@@ -302,10 +259,11 @@ export default function Page() {
 
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
-    const items = [...routines];
+    const items = Array.from(routines);
     const [reordered] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reordered);
     setRoutines(items);
+    if (userId) localStorage.setItem(routinesKey, JSON.stringify(items));
   };
 
   const handleRoutineDeleteConfirm = (idx: number) => {
@@ -313,119 +271,199 @@ export default function Page() {
       const copy = [...routines];
       copy.splice(idx, 1);
       setRoutines(copy);
+      if (userId) localStorage.setItem(routinesKey, JSON.stringify(copy));
       setToast({ emoji: "🗑️", message: "루틴이 삭제되었습니다." });
     }
   };
 
-  async function fetchHabitSuggestions(
-    prevTask: string | null,
-    nextTask: string | null,
-  ): Promise<{ habit: string; emoji: string; description: string }[]> {
+  async function fetchHabitSuggestions(prevTask: string | null, nextTask: string | null): Promise<string[]> {
     const context = [prevTask, nextTask].filter(Boolean).join(", ");
-    if (!context) {
-      return habitCandidates.slice(0, 3).map(h => ({
-        habit: h,
-        emoji: "🎯",
-        description: "",
-      }));
-    }
+    if (!context) return habitCandidates.slice(0, 3);
 
     try {
+      setAiHabitLoading(true);
+      setAiHabitError(null);
+      const prompt = `사용자의 이전 행동과 다음 행동: ${context}\n이 행동들 사이에 자연스럽게 연결할 수 있는 3개 이상의 5분 이내에 할 수 있는 웰빙 습관을 명사형(예: 마시기, 걷기, 읽기, 스트레칭 등 구체적 행동)으로만 추천해 주세요. 추상적 개념(예: 마음, 생각, 행복, 긍정, 집중력 등)은 절대 추천하지 마세요. 각 습관은 20자 이내로 간결하며, 구체적인 행동과 시간(몇 분, 몇 회)을 포함하고, 친절한 설명(30자 이내)도 포함하세요. 예시: '💨 2분 깊은 숨쉬기 - 긴장 완화 및 집중력 향상'`;
+
       const res = await fetch("/openai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: `앞뒤 활동: ${context}\n\n당신은 웰빙 전문가입니다. 다음 조건을 정확히 지켜서 "습관 추천"을 최소 3개, 최대 5개 출력해 주세요.\n- 각 항목은 아래 형식으로만: "3분 스트레칭"\n- 앞 숫자는 1~5분 사이\n- 행동은 구체적이고 한국어 명사형 (예: 스트레칭, 숨쉬기, 걷기)`
-        }),
+        body: JSON.stringify({ prompt }),
       });
-
       const data = await res.json();
-      const habits: string[] = JSON.parse(data.result);
-      return habits.map(habit => ({ habit, emoji: "🎯", description: "" }));
-    } catch (e) {
-      console.error("습관 추천 API 오류", e);
-      return [];
+
+      if (!res.ok) {
+        setAiHabitError("AI 추천 불가");
+        return habitCandidates.slice(0, 3);
+      }
+
+      const lines = data.result
+        .split(/\r?\n/)
+        .filter((line: string) => line.trim() !== "")
+        .map((line: string) => line.replace(/^[\d\.\-\)\s]+/, "").trim());
+      const cleaned = cleanAndDescribeHabits(lines);
+      if (cleaned.length === 0) return habitCandidates.slice(0, 3);
+      return cleaned.map(({ habit, description }) => `${habit} - ${description}`);
+    } catch {
+      setAiHabitError("추천 중 오류 발생");
+      return habitCandidates.slice(0, 3);
+    } finally {
+      setAiHabitLoading(false);
     }
   }
 
-  // 습관 추가 함수
-  const addHabitBetween = (idx: number, habit: { habit: string; emoji: string }) => {
-    const newHabit: Routine = {
+  const handleFetchHabitSuggestions = async (idx: number) => {
+    if (!isLoggedIn) {
+      alert("로그인 후 이용해주세요.");
+      return;
+    }
+    const prevTask = idx > 0 ? routines[idx - 1].task : null;
+    const nextTask = idx < routines.length - 1 ? routines[idx + 1].task : null;
+
+    const suggestions = await fetchHabitSuggestions(prevTask, nextTask);
+    setAiHabitSuggestions(suggestions);
+    setHabitSuggestionIdx(idx);
+  };
+
+  const addHabitBetween = (idx: number, habit: string) => {
+    if (!isLoggedIn) return alert("로그인 후 이용해주세요.");
+    const cleanedHabit = habit.replace(/\(\s*습관\s*\)-?/, "").trim();
+    const habitRoutine: Routine = {
       day: selectedDay,
-      start: "00:00",
-      end: "00:00",
-      task: habit.habit,
+      start: "",
+      end: "",
+      task: cleanedHabit,
       done: false,
       rating: 0,
       isHabit: true,
-      emoji: habit.emoji,
-      description: "",
     };
-    
-    const updated = [...routines];
-    updated.splice(idx, 0, newHabit);
-    setRoutines(updated);
-    setToast({ emoji: habit.emoji, message: `${habit.habit} 추가!` });
+    const copy = [...routines];
+    copy.splice(idx + 1, 0, habitRoutine);
+    setRoutines(copy);
+    setHabitSuggestionIdx(null);
   };
 
-  // 샘플 데이터 (실제로는 서버나 로컬스토리지에서 계산)
-  const attendanceData = Array.from({ length: 90 }, (_, i) => ({
-    date: new Date(new Date().setDate(new Date().getDate() - 89 + i)).toISOString().split('T')[0],
-    count: Math.random() > 0.7 ? 1 : 0
-  }));
+  const filteredRoutines = routines.filter(() => true);
 
-  const routineCompletionData = [
-    { name: "월", Completion: 85 },
-    { name: "화", Completion: 92 },
-    { name: "수", Completion: 78 },
-    { name: "목", Completion: 88 },
-    { name: "금", Completion: 95 },
-    { name: "토", Completion: 65 },
-    { name: "일", Completion: 70 },
-  ];
+  const completionData = fullDays.map(day => {
+    const filteredDay = filteredRoutines.filter(r => r.day === day);
+    const total = filteredDay.length;
+    const done = filteredDay.filter(r => r.done).length;
+    return { name: day, Completion: total ? Math.round((done / total) * 100) : 0 };
+  });
 
-  const habitCompletionData = [
-    { name: "물 마시기", Completion: 95 },
-    { name: "스트레칭", Completion: 82 },
-    { name: "명상", Completion: 73 },
-    { name: "산책", Completion: 68 },
-  ];
+  const satisfactionData = fullDays.map(day => {
+    const filteredDay = filteredRoutines.filter(r => r.day === day && r.done);
+    const avg = filteredDay.length ? Math.round(filteredDay.reduce((acc, cur) => acc + cur.rating, 0) / filteredDay.length) : 0;
+    return { name: day, Satisfaction: avg };
+  });
 
-  const overallCompletionData = [
-    { name: "W1", Completion: 78 },
-    { name: "W2", Completion: 85 },
-    { name: "W3", Completion: 92 },
-    { name: "W4", Completion: 87 },
-  ];
+  const attendanceData = useMemo(() => {
+    const data: { date: string; count: number }[] = [];
+    const startDate = new Date(currentDate);
+    startDate.setMonth(startDate.getMonth() - 3);
+    for (let i = 0; i < 90; i++) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      const dateStr = date.toISOString().slice(0, 10);
+      const dayChar = fullDays[date.getDay() === 0 ? 6 : date.getDay() - 1];
+      const doneCount = routines.filter(r => r.day === dayChar && r.done).length;
+      data.push({ date: dateStr, count: doneCount });
+    }
+    return data;
+  }, [routines, currentDate]);
 
-  const satisfactionData = [
-    { name: "월", Satisfaction: 7.5 },
-    { name: "화", Satisfaction: 8.2 },
-    { name: "수", Satisfaction: 6.8 },
-    { name: "목", Satisfaction: 8.5 },
-    { name: "금", Satisfaction: 9.0 },
-    { name: "토", Satisfaction: 7.0 },
-    { name: "일", Satisfaction: 7.3 },
-  ];
+  const today = new Date().getDay();
+  const todayRoutines = useMemo(
+    () => routines.filter(r => r.day === fullDays[today === 0 ? 6 : today - 1] && r.done),
+    [routines]
+  );
+  const sortedBySatisfaction = useMemo(
+    () => [...todayRoutines].sort((a, b) => b.rating - a.rating),
+    [todayRoutines]
+  );
+  const topRoutine = sortedBySatisfaction[0];
 
-  const downloadCSV = () => {
-    const csvContent = "날짜,완료율,만족도\n" + 
-      fullDays.map((day, idx) => `${day},${routineCompletionData[idx].Completion},${satisfactionData[idx].Satisfaction}`).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  useEffect(() => {
+    let ignore = false;
+    async function fetchDiaryImage() {
+      if (!topRoutine) {
+        setDiaryImageUrl(null);
+        return;
+      }
+      const prompt = getDiaryPrompt(topRoutine);
+      if (!prompt) {
+        setDiaryImageUrl(null);
+        setDiaryError("대표 행동을 그림으로 표현할 수 없습니다.");
+        return;
+      }
+      setDiaryLoading(true);
+      setDiaryError(null);
+      try {
+        const res = await fetch("/openai/image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.image_url) {
+          setDiaryError("그림 생성 실패");
+          setDiaryImageUrl(null);
+        } else {
+          if (!ignore) setDiaryImageUrl(data.image_url);
+        }
+      } catch {
+        setDiaryError("OpenAI 그림 생성 오류");
+        setDiaryImageUrl(null);
+      } finally {
+        setDiaryLoading(false);
+      }
+    }
+    fetchDiaryImage();
+    return () => { ignore = true; };
+  }, [topRoutine]);
+
+  function downloadCSV() {
+    if (routines.length === 0) {
+      alert("내보낼 데이터가 없습니다.");
+      return;
+    }
+
+    const headers = ["UserID", "Day", "Date", "Task", "Done", "Rating", "IsHabit"];
+    const rows = routines.map(({ day, task, done, rating, isHabit }) => {
+      const dateStr = formatDiaryDate(day, currentDate, fullDays.indexOf(day));
+      return [
+        userId,
+        day,
+        dateStr,
+        `"${task.replace(/"/g, '""')}"`,
+        done ? "Yes" : "No",
+        rating.toString(),
+        isHabit ? "Yes" : "No",
+      ];
+    });
+
+    const attendanceHeaders = ["Date", "AttendanceCount"];
+    const attendanceRows = attendanceData.map(({ date, count }) => [date, count.toString()]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(r => r.join(",")),
+      "",
+      attendanceHeaders.join(","),
+      ...attendanceRows.map(r => r.join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "habit_tracker_data.csv";
+    link.href = url;
+    link.download = "habit_tracking_with_stats.csv";
+    document.body.appendChild(link);
     link.click();
-  };
-
-  // 오늘의 최고 평점 루틴 찾기
-  const topRoutine = useMemo(() => {
-    const todayRoutines = routines.filter(r => r.done && r.rating > 0);
-    if (todayRoutines.length === 0) return null;
-    return todayRoutines.reduce((prev, current) => 
-      prev.rating > current.rating ? prev : current
-    );
-  }, [routines]);
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="max-w-xl mx-auto p-6 space-y-6 font-sans relative min-h-screen pb-8">
@@ -448,22 +486,27 @@ export default function Page() {
             onChange={e => setUserPw(e.target.value)}
             className="border rounded px-3 py-2 w-full"
           />
-          {loginError && <p className="text-red-600">{loginError}</p>}
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={adminModeActive}
-              onChange={e => setAdminModeActive(e.target.checked)}
-              id="adminMode"
-            />
-            <label htmlFor="adminMode" className="text-sm">관리자 모드</label>
+          <div className="flex justify-between items-center mt-1">
+            <button
+              onClick={() => {
+                setAdminModeActive(!adminModeActive);
+                setLoginError("");
+                setUserId("");
+                setUserPw("");
+                setUserAddError("");
+              }}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              {adminModeActive ? "일반 로그인 모드로 전환" : "관리자 모드"}
+            </button>
+            <button
+              onClick={handleLogin}
+              className="bg-blue-600 text-white px-6 py-2 rounded font-semibold hover:bg-blue-700 transition"
+            >
+              로그인
+            </button>
           </div>
-          <button
-            onClick={handleLogin}
-            className="rounded-full bg-black text-white py-2 w-full font-semibold hover:bg-gray-800 transition"
-          >
-            로그인
-          </button>
+          {loginError && <p className="text-red-600">{loginError}</p>}
           {adminModeActive && (
             <div className="mt-4 border rounded p-4 bg-gray-50">
               <h3 className="font-semibold mb-2">사용자 등록 (관리자 전용)</h3>
@@ -551,7 +594,7 @@ export default function Page() {
                 selectedTab === "tracker" ? "bg-black text-white" : "bg-gray-300 text-black"
               }`}
             >
-              트래커
+              통계
             </button>
             <button
               onClick={() => setSelectedTab("today-diary")}
@@ -607,12 +650,12 @@ export default function Page() {
                       .filter(r => r.day === selectedDay)
                       .map((routine, idx) => {
                         const displayTask = routine.isHabit
-                          ? `${routine.emoji ?? ""} ${routine.task} - ${routine.description ?? ""}`.trim()
+                          ? routine.task.replace(/\(\s*습관\s*\)-?/, "")
                           : routine.task;
 
                         // 습관 항목만 스카이 블루 배경 적용
                         const backgroundStyle = routine.isHabit
-                          ? { backgroundColor: "#e9ecef", padding: "6px 12px", borderRadius: "9999px" }
+                          ? { backgroundColor: "#e3f2fd", padding: "6px 12px", borderRadius: "9999px" }
                           : {};
 
                         return (
@@ -665,23 +708,28 @@ export default function Page() {
                         >
                           ✕
                         </button>
-                        {(aiHabitSuggestions.length > 0
-                          ? aiHabitSuggestions
-                          : habitCandidates.map(h => ({ habit: h, emoji: "🎯", description: "" })).slice(0, 3)
-                        ).map((habit, i) => (
-                          <button
-                            key={i}
-                            onClick={() => {
-                              addHabitBetween(habitSuggestionIdx, habit);
-                              setHabitSuggestionIdx(null);
-                              setAiHabitSuggestions([]);
-                              setAiHabitError(null);
-                            }}
-                            className="rounded-full bg-gray-300 px-3 py-1 hover:bg-gray-400"
-                          >
-                            {habit.emoji} {habit.habit}
-                          </button>
-                        ))}
+                        {aiHabitLoading ? (
+                          <p>추천 생성 중...</p>
+                        ) : aiHabitError ? (
+                          <p className="text-red-600">{aiHabitError}</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {(aiHabitSuggestions.length > 0 ? aiHabitSuggestions : habitCandidates.slice(0, 3)).map((habit, i) => (
+                              <button
+                                key={i}
+                                onClick={() => {
+                                  addHabitBetween(habitSuggestionIdx, habit);
+                                  setHabitSuggestionIdx(null);
+                                  setAiHabitSuggestions([]);
+                                  setAiHabitError(null);
+                                }}
+                                className="rounded-full bg-gray-300 px-3 py-1 hover:bg-gray-400"
+                              >
+                                {habit}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -689,3 +737,107 @@ export default function Page() {
               </Droppable>
             </DragDropContext>
           )}
+
+          {selectedTab === "tracker" && (
+            <div className="mt-4 space-y-6">
+              <h2 className="font-semibold text-center">습관 통계</h2>
+              <div className="mb-6">
+                <h3 className="font-semibold mb-2 cursor-pointer" onClick={() => {/* TODO: 기간 필터 변경 */}}>
+                  출석률 캘린더 (최근 3개월)
+                </h3>
+                <CalendarHeatmap
+                  startDate={new Date(new Date().setMonth(new Date().getMonth() - 3))}
+                  endDate={new Date()}
+                  values={attendanceData}
+                  classForValue={(value) => {
+                    if (!value || value.count === 0) return 'color-empty';
+                    if (value.count >= 1) return 'color-scale-4';
+                    if (value.count >= 0.5) return 'color-scale-2';
+                    return 'color-scale-1';
+                  }}
+                  showWeekdayLabels
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-semibold mb-2 cursor-pointer" onClick={() => {/* TODO: 기간 필터 변경 */}}>
+                    완료율 (%)
+                  </h3>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={completionData}>
+                      <XAxis dataKey="name" />
+                      <YAxis domain={[0, 100]} />
+                      <Tooltip />
+                      <Bar dataKey="Completion" fill="#0f172a" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2 cursor-pointer" onClick={() => {/* TODO: 기간 필터 변경 */}}>
+                    평균 만족도
+                  </h3>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={satisfactionData}>
+                      <XAxis dataKey="name" />
+                      <YAxis domain={[0, 10]} />
+                      <Tooltip />
+                      <Bar dataKey="Satisfaction" fill="#0f172a" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="text-center mt-4">
+                <button
+                  onClick={downloadCSV}
+                  className="rounded-full bg-black text-white px-6 py-2 font-semibold hover:bg-gray-800 transition"
+                >
+                  CSV 다운로드
+                </button>
+              </div>
+            </div>
+          )}
+
+          {selectedTab === "today-diary" && (
+            <div className="mt-4 space-y-6 max-h-[480px] overflow-y-auto border rounded p-4 bg-gray-50 pb-8">
+              <h2 className="text-center font-semibold text-xl mb-4">오늘 그림일기</h2>
+              {topRoutine && (
+                <div className="flex flex-col items-center gap-2">
+                  {diaryLoading && <div className="text-gray-500 py-8">그림 생성 중...</div>}
+                  {diaryError && <div className="text-red-600">{diaryError}</div>}
+                  {diaryImageUrl && (
+                    <Image
+                      src={diaryImageUrl}
+                      alt="오늘의 그림일기"
+                      width={320}
+                      height={240}
+                      className="rounded shadow"
+                      style={{ objectFit: "contain" }}
+                    />
+                  )}
+                  <div className="text-center text-lg font-semibold mt-2">
+                    {topRoutine.task} (만족도 {topRoutine.rating})
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {getDiaryPrompt(topRoutine)}
+                  </div>
+                </div>
+              )}
+              {!topRoutine && (
+                <div className="text-center text-gray-400 py-8">
+                  오늘 완료한 루틴/습관이 없습니다.<br />체크 후 그림일기를 확인하세요!
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+      <style jsx global>{`
+        .color-empty { fill: #eee; }
+        .color-scale-1 { fill: #c6e48b; }
+        .color-scale-2 { fill: #7bc96f; }
+        .color-scale-3 { fill: #239a3b; }
+        .color-scale-4 { fill: #196127; }
+      `}</style>
+    </div>
+  );
+}
