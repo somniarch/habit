@@ -82,7 +82,7 @@ export default function RoutineCard({
             <p className="text-gray-400">추천할 습관이 없습니다.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {aiHabitSuggestions.map((habit, i) => (
+              {aiHabitSuggestions.map((habit: string, i: number) => (
                 <button
                   key={i}
                   onClick={() => onAddHabit(routine.id, habit)}
