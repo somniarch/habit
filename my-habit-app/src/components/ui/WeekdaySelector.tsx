@@ -10,7 +10,7 @@ type Props = {
   onNextWeek: () => void;
 };
 
-const days: string[] = ['월', '화', '수', '목', '금', '토', '일'];
+const days = ['월', '화', '수', '목', '금', '토', '일'];
 
 export default function WeekdaySelector({
   selectedDay,
@@ -20,23 +20,25 @@ export default function WeekdaySelector({
   onNextWeek,
 }: Props) {
   return (
-    <div className="space-y-2 text-center">
-      <div className="flex items-center justify-center gap-4 font-bold text-lg">
-        <button onClick={onPrevWeek}>{'<'}</button>
-        <span>{weekInfo}</span>
-        <button onClick={onNextWeek}>{'>'}</button>
+    <div className="space-y-3 text-center">
+      {/* 상단 주차 이동 */}
+      <div className="flex items-center justify-center gap-4 font-medium text-sm text-gray-600">
+        <button onClick={onPrevWeek} className="text-lg">{'<'}</button>
+        <span className="text-sm tracking-tight">{weekInfo}</span>
+        <button onClick={onNextWeek} className="text-lg">{'>'}</button>
       </div>
 
-      <div className="flex justify-center gap-2 text-sm text-gray-600">
-        {days.map((day: string, i: number) => (
-          <div key={day} className="flex flex-col items-center">
+      {/* 요일 선택 */}
+      <div className="flex justify-center gap-3">
+        {days.map((day, i) => (
+          <div key={day} className="flex flex-col items-center text-sm text-gray-500">
             <span className="text-xs">{`07/${7 + i}`}</span>
             <button
               onClick={() => onSelectDay(day)}
-              className={`w-8 h-8 rounded-full ${
+              className={`w-8 h-8 rounded-full transition-all duration-200 font-medium ${
                 selectedDay === day
                   ? 'bg-black text-white'
-                  : 'bg-gray-200 text-black'
+                  : 'bg-gray-200 text-gray-700'
               }`}
             >
               {day}
