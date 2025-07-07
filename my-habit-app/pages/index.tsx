@@ -1,22 +1,6 @@
 'use client';
-
 import React, { useState, useMemo, useEffect } from 'react';
-import AuthForm from '../src/components/ui/AuthForm';
-import StatisticsCharts from '../src/components/ui/StatisticsCharts';
-import RoutineCard from '../src/components/ui/RoutineCard';
-import HabitSuggestion from '../src/components/ui/HabitSuggestion';
-import DiaryView from '../src/components/ui/DiaryView';
-
-type Routine = {
-  id: string;
-  day: string;
-  start: string;
-  end: string;
-  task: string;
-  done: boolean;
-  rating: number;
-  isHabit?: boolean;
-};
+import { AuthForm, StatisticsCharts, RoutineCard, DiaryView } from '../src/components/ui';
 
 export default function HomePage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -29,39 +13,25 @@ export default function HomePage() {
   const [newUserPw, setNewUserPw] = useState('');
   const [userAddError, setUserAddError] = useState('');
 
-  const [topRoutine, setTopRoutine] = useState<Routine | null>(null);
-  const [diaryImageUrl, setDiaryImageUrl] = useState<string | null>(null);
+  const [topRoutine, setTopRoutine] = useState(null);
+  const [diaryImageUrl, setDiaryImageUrl] = useState(null);
   const [diaryLoading, setDiaryLoading] = useState(false);
-  const [diaryError, setDiaryError] = useState<string | null>(null);
+  const [diaryError, setDiaryError] = useState(null);
 
-  const [aiHabitSuggestions, setAiHabitSuggestions] = useState<string[]>([]);
+  const [aiHabitSuggestions, setAiHabitSuggestions] = useState([]);
   const [aiHabitLoading, setAiHabitLoading] = useState(false);
-  const [suggestTargetId, setSuggestTargetId] = useState<string | null>(null);
+  const [suggestTargetId, setSuggestTargetId] = useState(null);
 
-  const [routines, setRoutines] = useState<Routine[]>([
+  const [routines, setRoutines] = useState([
     {
-      id: '1',
-      day: '월',
-      start: '09:00',
-      end: '10:00',
-      task: '스트레칭',
-      done: true,
-      rating: 4,
-      isHabit: true
+      id: '1', day: '월', start: '09:00', end: '10:00', task: '스트레칭', done: true, rating: 4, isHabit: true
     },
     {
-      id: '2',
-      day: '월',
-      start: '10:30',
-      end: '11:30',
-      task: '러닝',
-      done: false,
-      rating: 0,
+      id: '2', day: '월', start: '10:30', end: '11:30', task: '러닝', done: false, rating: 0
     }
   ]);
 
   const selectedDay = '월';
-
   const completionData = useMemo(() => [{ name: '월', value: 80 }, { name: '화', value: 90 }], []);
   const habitTypeData = useMemo(() => [{ name: '스트레칭', value: 5 }, { name: '걷기', value: 3 }], []);
   const weeklyTrend = useMemo(() => [{ name: '1주 전', 완료율: 85, 만족도: 4 }], []);
@@ -98,11 +68,11 @@ export default function HomePage() {
     setUserAddError('');
   };
 
-  const handleRoutineDeleteConfirm = (id: string) => {
+  const handleRoutineDeleteConfirm = (id) => {
     setRoutines(routines.filter((r) => r.id !== id));
   };
 
-  const handleFetchHabitSuggestions = async (targetId: string) => {
+  const handleFetchHabitSuggestions = async (targetId) => {
     const idx = routines.findIndex((r) => r.id === targetId);
     if (idx === -1) return;
 
@@ -116,9 +86,8 @@ export default function HomePage() {
       const res = await fetch('/openai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prevTask: prev, nextTask: next }),
+        body: JSON.stringify({ prevTask: prev, nextTask: next })
       });
-
       const data = await res.json();
       setAiHabitSuggestions(data.result || []);
     } catch (e) {
@@ -129,7 +98,7 @@ export default function HomePage() {
     }
   };
 
-  const addHabitBetween = (id: string, habit: string) => {
+  const addHabitBetween = (id, habit) => {
     const idx = routines.findIndex((r) => r.id === id);
     if (idx === -1) return;
     const updated = [...routines];
@@ -141,12 +110,12 @@ export default function HomePage() {
       task: habit,
       done: false,
       rating: 0,
-      isHabit: true,
+      isHabit: true
     });
     setRoutines(updated);
   };
 
-  const handleRateChange = (id: string, rating: number) => {
+  const handleRateChange = (id, rating) => {
     const updated = [...routines];
     const targetIdx = updated.findIndex((r) => r.id === id);
     if (targetIdx !== -1) {
@@ -212,15 +181,6 @@ export default function HomePage() {
           onAddHabit={addHabitBetween}
         />
       ))}
-
-      <HabitSuggestion
-        aiHabitSuggestions={aiHabitSuggestions}
-        habitCandidates={['2분 걷기', '1분 물마시기']}
-        habitSuggestionIdx={suggestTargetId}
-        addHabitBetween={addHabitBetween}
-        aiHabitLoading={aiHabitLoading}
-        onClose={() => setSuggestTargetId(null)}
-      />
     </div>
   );
 }
