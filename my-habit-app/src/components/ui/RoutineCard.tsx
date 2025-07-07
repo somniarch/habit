@@ -16,11 +16,12 @@ type RoutineCardProps = {
   routine: Routine;
   onDelete: (id: string) => void;
   onRate: (id: string, rating: number) => void;
-  onSuggestHabit: (id: string) => void;
+
+  onSuggestHabit: (id: string) => void; // ✅ 수정됨
   aiHabitSuggestions: string[];
   isLoading: boolean;
   isActive: boolean;
-  onAddHabit: (id: string, habit: string) => void;
+  onAddHabit: (id: string, habit: string) => void; // ✅ 타입 통일
 };
 
 export default function RoutineCard({
@@ -31,21 +32,23 @@ export default function RoutineCard({
   aiHabitSuggestions,
   isLoading,
   isActive,
-  onAddHabit
+  onAddHabit,
 }: RoutineCardProps) {
   const displayTask = routine.isHabit
     ? routine.task.replace(/\(\s*습관\s*\)-?/, '')
     : routine.task;
 
   const bgStyle = routine.isHabit
-    ? { backgroundColor: "#e3f2fd", padding: "6px 12px", borderRadius: "9999px" }
+    ? { backgroundColor: '#e3f2fd', padding: '6px 12px', borderRadius: '9999px' }
     : {};
 
   return (
     <div className="border rounded p-4 mt-2 space-y-2" style={bgStyle}>
       <div className="flex justify-between items-center">
         <div className="flex flex-col">
-          <span className="font-semibold">{routine.start} - {routine.end}</span>
+          <span className="font-semibold">
+            {routine.start} - {routine.end}
+          </span>
           <span>{displayTask}</span>
         </div>
         <div className="flex items-center gap-2">
@@ -66,13 +69,14 @@ export default function RoutineCard({
         </div>
       </div>
 
-      {/* AI 추천 기능 삽입 */}
+      {/* AI 추천 버튼 */}
       <div className="flex justify-between items-center text-sm text-blue-600 mt-1">
         <button onClick={() => onSuggestHabit(routine.id)}>
           + 이 위치에 웰빙 습관 추천받기
         </button>
       </div>
 
+      {/* AI 추천 결과 */}
       {isActive && (
         <div className="mt-2 space-y-2">
           {isLoading ? (
