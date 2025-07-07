@@ -3,8 +3,9 @@
 
 import React, { useState, useMemo } from 'react';
 import AuthForm from '../src/components/ui/AuthForm';
-import HabitSuggestion from '../src/components/ui/HabitSuggestion';
 import StatisticsCharts from '../src/components/ui/StatisticsCharts';
+import RoutineCard from '../src/components/ui/RoutineCard';
+import HabitSuggestion from '../src/components/ui/HabitSuggestion';
 import DiaryView from '../src/components/ui/DiaryView';
 
 export default function HomePage() {
@@ -17,6 +18,15 @@ export default function HomePage() {
   const [newUserId, setNewUserId] = useState('');
   const [newUserPw, setNewUserPw] = useState('');
   const [userAddError, setUserAddError] = useState('');
+
+  const [topRoutine, setTopRoutine] = useState(null);
+  const [diaryImageUrl, setDiaryImageUrl] = useState<string | null>(null);
+  const [diaryLoading, setDiaryLoading] = useState(false);
+  const [diaryError, setDiaryError] = useState<string | null>(null);
+
+  const [aiHabitSuggestions, setAiHabitSuggestions] = useState<string[]>([]);
+  const [aiHabitLoading, setAiHabitLoading] = useState(false);
+  const [habitSuggestionIdx, setHabitSuggestionIdx] = useState<number | null>(null);
 
   const completionData = useMemo(() => [{ name: '월', value: 80 }, { name: '화', value: 90 }], []);
   const habitTypeData = useMemo(() => [{ name: '스트레칭', value: 5 }, { name: '걷기', value: 3 }], []);
@@ -79,18 +89,18 @@ export default function HomePage() {
         COLORS={COLORS}
       />
       <DiaryView
-        topRoutine={null}
-        diaryImageUrl={null}
-        diaryLoading={false}
-        diaryError={null}
+        topRoutine={topRoutine}
+        diaryImageUrl={diaryImageUrl}
+        diaryLoading={diaryLoading}
+        diaryError={diaryError}
       />
       <HabitSuggestion
-        aiHabitSuggestions={[]}
+        aiHabitSuggestions={aiHabitSuggestions}
         habitCandidates={['2분 걷기', '1분 물마시기']}
-        habitSuggestionIdx={null}
+        habitSuggestionIdx={habitSuggestionIdx}
         addHabitBetween={() => {}}
-        aiHabitLoading={false}
-        onClose={() => {}}
+        aiHabitLoading={aiHabitLoading}
+        onClose={() => setHabitSuggestionIdx(null)}
       />
     </div>
   );
