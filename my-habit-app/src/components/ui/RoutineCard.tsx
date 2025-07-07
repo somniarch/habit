@@ -5,3 +5,4 @@ export default function RoutineCard({ routine, onUpdate, onDelete, onRate, onEdi
     <div className="routine-card">{/* 루틴 항목 UI */}</div>
   );
 }
+ 
