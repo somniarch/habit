@@ -172,7 +172,6 @@ function getDiaryPrompt(routine: Routine) {
 }
 
 export default function Page() {
-  export default function Page() {
   const [userId, setUserId] = useState("");
   const [userPw, setUserPw] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
