@@ -57,8 +57,10 @@ export default function StatisticsCharts({
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) =>
-                  percent !== undefined ? `${name} ${(percent * 100).toFixed(0)}%` : name
+                label={(entry: { name: string; percent?: number }) =>
+                  typeof entry.percent === 'number'
+                    ? `${entry.name} ${(entry.percent * 100).toFixed(0)}%`
+                    : entry.name
                 }
                 outerRadius={80}
                 dataKey="value"
