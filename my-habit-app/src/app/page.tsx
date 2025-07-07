@@ -6,8 +6,6 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell
 } from "recharts";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
-import CalendarHeatmap from "react-calendar-heatmap";
-import "react-calendar-heatmap/dist/styles.css";
 
 type Routine = {
   id: string;
@@ -372,23 +370,6 @@ export default function Page() {
       weeks.push({ name: `${i+1}주 전`, 완료율: Math.random() * 30 + 70, 만족도: avg || Math.random() * 3 + 7 });
     }
     return weeks;
-  }, [routines]);
-
-  const attendanceData = useMemo(() => {
-    const data: { date: string; count: number }[] = [];
-    const startDate = new Date();
-    startDate.setMonth(startDate.getMonth() - 3);
-    
-    for (let i = 0; i < 90; i++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
-      const dateStr = date.toISOString().slice(0, 10);
-      const dayIdx = date.getDay() === 0 ? 6 : date.getDay() - 1;
-      const dayName = fullDays[dayIdx];
-      const count = routines.filter(r => r.day === dayName && r.done).length;
-      data.push({ date: dateStr, count: Math.min(count, 5) });
-    }
-    return data;
   }, [routines]);
 
   // 오늘의 최고 루틴
@@ -871,27 +852,6 @@ export default function Page() {
             {/* 통계 탭 */}
             {selectedTab === "tracker" && (
               <div className="space-y-6">
-                {/* 히트맵 캘린더 */}
-                <div className="bg-white rounded-2xl shadow-lg p-6">
-                  <h3 className="text-xl font-bold text-gray-800 mb-4">출석률 캘린더</h3>
-                  <div className="overflow-x-auto">
-                    <CalendarHeatmap
-                      startDate={new Date(new Date().setMonth(new Date().getMonth() - 3))}
-                      endDate={new Date()}
-                      values={attendanceData}
-                      classForValue={(value) => {
-                        if (!value || value.count === 0) return 'heat-0';
-                        if (value.count === 1) return 'heat-1';
-                        if (value.count === 2) return 'heat-2';
-                        if (value.count === 3) return 'heat-3';
-                        if (value.count === 4) return 'heat-4';
-                        return 'heat-5';
-                      }}
-                      showWeekdayLabels
-                      gutterSize={2}
-                    />
-                  </div>
-                </div>
 
                 {/* 통계 차트들 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
