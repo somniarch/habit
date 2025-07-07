@@ -172,6 +172,7 @@ function getDiaryPrompt(routine: Routine) {
 }
 
 export default function Page() {
+  export default function Page() {
   const [userId, setUserId] = useState("");
   const [userPw, setUserPw] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -188,26 +189,15 @@ export default function Page() {
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [weekNum, setWeekNum] = useState(1);
-  const [selectedDay, setSelectedDay] = useState(fullDays[0]);
+  const [selectedDay, setSelectedDay] = useState("월");
   const [selectedTab, setSelectedTab] = useState<"routine-habit" | "tracker" | "today-diary">("routine-habit");
 
-  const [routines, setRoutines] = useState<Routine[]>(() => {
-    if (typeof window === "undefined" || !userId) return [];
-    const saved = localStorage.getItem(routinesKey);
-    return saved ? JSON.parse(saved) : [];
-  });
-
+  const [routines, setRoutines] = useState<Routine[]>([]);
   const [newRoutine, setNewRoutine] = useState({ start: "08:00", end: "09:00", task: "" });
   const [habitSuggestionIdx, setHabitSuggestionIdx] = useState<number | null>(null);
-  const [todayDiaryLogs, setTodayDiaryLogs] = useState<Record<string, string[]>>(() => {
-    if (typeof window === "undefined" || !userId) return {};
-    const saved = localStorage.getItem(diaryLogsKey);
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [todayDiaryLogs, setTodayDiaryLogs] = useState<Record<string, string[]>>({});
 
-  const [aiHabitSuggestions, setAiHabitSuggestions] = useState<
-    { habit: string; emoji: string; description: string }[]
-  >([]);
+  const [aiHabitSuggestions, setAiHabitSuggestions] = useState<{ habit: string; emoji: string; description: string }[]>([]);
   const [aiHabitLoading, setAiHabitLoading] = useState(false);
   const [aiHabitError, setAiHabitError] = useState<string | null>(null);
 
@@ -215,12 +205,14 @@ export default function Page() {
   const [diaryLoading, setDiaryLoading] = useState(false);
   const [diaryError, setDiaryError] = useState<string | null>(null);
 
+  const [newUserId, setNewUserId] = useState("");
+  const [newUserPw, setNewUserPw] = useState("");
+  const [userAddError, setUserAddError] = useState("");
+
   const getRegisteredUsers = (): { id: string; pw: string }[] => {
     if (typeof window === "undefined") return [];
-    const json = localStorage.getItem(storedUsersKey);
-    if (!json) return [];
     try {
-      return JSON.parse(json);
+      return JSON.parse(localStorage.getItem(storedUsersKey) || "[]");
     } catch {
       return [];
     }
@@ -236,6 +228,7 @@ export default function Page() {
       setLoginError("아이디와 비밀번호를 모두 입력해주세요.");
       return;
     }
+
     if (adminModeActive) {
       if (userId === adminId && userPw === adminPw) {
         setIsLoggedIn(true);
@@ -248,6 +241,7 @@ export default function Page() {
       }
       return;
     }
+
     const users = getRegisteredUsers();
     const found = users.find((u) => u.id === userId && u.pw === userPw);
     if (found) {
@@ -270,20 +264,18 @@ export default function Page() {
     setToast({ emoji: "👋", message: "로그아웃 되었습니다." });
   };
 
-  const [newUserId, setNewUserId] = useState("");
-  const [newUserPw, setNewUserPw] = useState("");
-  const [userAddError, setUserAddError] = useState("");
-
   const handleAddUser = () => {
     if (!newUserId.trim() || !newUserPw.trim()) {
       setUserAddError("아이디와 비밀번호를 모두 입력해주세요.");
       return;
     }
+
     const users = getRegisteredUsers();
     if (users.find((u) => u.id === newUserId)) {
       setUserAddError("이미 존재하는 아이디입니다.");
       return;
     }
+
     const updated = [...users, { id: newUserId, pw: newUserPw }];
     saveRegisteredUsers(updated);
     setUserAddError("");
@@ -293,20 +285,33 @@ export default function Page() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined" && userId) {
+      const saved = localStorage.getItem(routinesKey);
+      setRoutines(saved ? JSON.parse(saved) : []);
+    }
+  }, [userId]);
+
+  useEffect(() => {
     if (userId) localStorage.setItem(routinesKey, JSON.stringify(routines));
-  }, [routines, routinesKey, userId]);
+  }, [routines]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && userId) {
+      const saved = localStorage.getItem(diaryLogsKey);
+      setTodayDiaryLogs(saved ? JSON.parse(saved) : {});
+    }
+  }, [userId]);
 
   useEffect(() => {
     if (userId) localStorage.setItem(diaryLogsKey, JSON.stringify(todayDiaryLogs));
-  }, [todayDiaryLogs, diaryLogsKey, userId]);
+  }, [todayDiaryLogs]);
 
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
-    const items = Array.from(routines);
+    const items = [...routines];
     const [reordered] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reordered);
     setRoutines(items);
-    if (userId) localStorage.setItem(routinesKey, JSON.stringify(items));
   };
 
   const handleRoutineDeleteConfirm = (idx: number) => {
@@ -314,267 +319,43 @@ export default function Page() {
       const copy = [...routines];
       copy.splice(idx, 1);
       setRoutines(copy);
-      if (userId) localStorage.setItem(routinesKey, JSON.stringify(copy));
       setToast({ emoji: "🗑️", message: "루틴이 삭제되었습니다." });
     }
   };
 
   async function fetchHabitSuggestions(
-  prevTask: string | null,
-  nextTask: string | null,
-): Promise<{ habit: string; emoji: string; description: string }[]> {
-  const context = [prevTask, nextTask].filter(Boolean).join(", ");
-  if (!context) {
-    return habitCandidates.slice(0, 3).map(h => ({
-      habit: h,
-      emoji: "🎯",
-      description: "",
-    }));
+    prevTask: string | null,
+    nextTask: string | null,
+  ): Promise<{ habit: string; emoji: string; description: string }[]> {
+    const context = [prevTask, nextTask].filter(Boolean).join(", ");
+    if (!context) {
+      return habitCandidates.slice(0, 3).map(h => ({
+        habit: h,
+        emoji: "🎯",
+        description: "",
+      }));
+    }
+
+    try {
+      const res = await fetch("/openai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: `앞뒤 활동: ${context}\n\n당신은 웰빙 전문가입니다. 다음 조건을 정확히 지켜서 "습관 추천"을 최소 3개, 최대 5개 출력해 주세요.\n- 각 항목은 아래 형식으로만: "3분 스트레칭"\n- 앞 숫자는 1~5분 사이\n- 행동은 구체적이고 한국어 명사형 (예: 스트레칭, 숨쉬기, 걷기)`
+        }),
+      });
+
+      const data = await res.json();
+      const habits: string[] = JSON.parse(data.result);
+      return habits.map(habit => ({ habit, emoji: "🎯", description: "" }));
+    } catch (e) {
+      console.error("습관 추천 API 오류", e);
+      return [];
+    }
   }
 
-  try {
-    setAiHabitLoading(true);
-    setAiHabitError(null);
-
-    const prompt = `사용자의 이전 행동과 다음 행동: ${context}
-이 행동들 사이에 자연스럽게 연결할 수 있는 3개 이상의 5분 이내에 할 수 있는 웰빙 습관을 명사형(예: 마시기, 걷기, 읽기, 스트레칭 등 구체적 행동)으로만 추천해 주세요. 추상적 개념(예: 마음, 생각, 행복, 긍정, 집중력 등)은 절대 추천하지 마세요. 각 습관은 20자 이내로 간결하며, 구체적인 행동과 시간(몇 분, 몇 회)을 포함하고, 친절한 설명(30자 이내)도 포함하세요. 예시: '💨 2분 깊은 숨쉬기 - 긴장 완화 및 집중력 향상'`;
-
-    const res = await fetch("/openai/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }),
-    });
-
-    const data = await res.json();
-
-    const lines = data.result
-      .split(/\r?\n/)
-      .filter((line: string) => line.trim() !== "")
-      .map((line: string) => line.replace(/^[\d\.\-\)\s]+/, "").trim());
-
-    const cleaned = cleanAndDescribeHabits(lines);
-
-    return cleaned.length > 0
-      ? cleaned.map(h => ({ ...h, description: "" }))
-      : habitCandidates.slice(0, 3).map(h => ({ habit: h, emoji: "🎯", description: "" }));
-  } catch (e) {
-    console.error("OpenAI JSON 파싱 실패", e);
-    setAiHabitError("추천 중 오류 발생");
-    return habitCandidates.slice(0, 3).map(h => ({
-      habit: h,
-      emoji: "🎯",
-      description: "",
-    }));
-  } finally {
-    setAiHabitLoading(false);
-  }
+  return null; // 이 아래에 UI 붙이시면 됩니다
 }
-
-
-
-
-  const handleFetchHabitSuggestions = async (idx: number) => {
-    if (!isLoggedIn) {
-      alert("로그인 후 이용해주세요.");
-      return;
-    }
-    const prevTask = idx > 0 ? routines[idx - 1].task : null;
-    const nextTask = idx < routines.length - 1 ? routines[idx + 1].task : null;
-
-    const suggestions = await fetchHabitSuggestions(prevTask, nextTask);
-    setAiHabitSuggestions(suggestions);
-    setHabitSuggestionIdx(idx);
-  };
-
-  const addHabitBetween = (
-  idx: number,
-  suggestion: { habit: string; emoji: string },
-) => {
-  if (!isLoggedIn) return alert("로그인 후 이용해주세요.");
-  const habitRoutine: Routine = {
-    day: selectedDay,
-    start: "",
-    end: "",
-    task: suggestion.habit,
-    emoji: suggestion.emoji,
-    done: false,
-    rating: 0,
-    isHabit: true,
-  };
-  const copy = [...routines];
-  copy.splice(idx + 1, 0, habitRoutine);
-  setRoutines(copy);
-  setHabitSuggestionIdx(null);
-};
-
-
-  const filteredRoutines = routines.filter(() => true);
-
-  const routineCompletionData = fullDays.map(day => {
-    const filteredDay = filteredRoutines.filter(r => r.day === day && !r.isHabit);
-    const total = filteredDay.length;
-    const done = filteredDay.filter(r => r.done).length;
-    return { name: day, Completion: total ? Math.round((done / total) * 100) : 0 };
-  });
-
-  const habitCompletionData = fullDays.map(day => {
-    const filteredDay = filteredRoutines.filter(r => r.day === day && r.isHabit);
-    const total = filteredDay.length;
-    const done = filteredDay.filter(r => r.done).length;
-    return { name: day, Completion: total ? Math.round((done / total) * 100) : 0 };
-  });
-
-  const overallCompletionData = fullDays.map(day => {
-    const filteredDay = filteredRoutines.filter(r => r.day === day);
-    const total = filteredDay.length;
-    const done = filteredDay.filter(r => r.done).length;
-    return { name: day, Completion: total ? Math.round((done / total) * 100) : 0 };
-  });
-
-  const satisfactionData = fullDays.map(day => {
-    const filteredDay = filteredRoutines.filter(r => r.day === day && r.done);
-    const avg = filteredDay.length ? Math.round(filteredDay.reduce((acc, cur) => acc + cur.rating, 0) / filteredDay.length) : 0;
-    return { name: day, Satisfaction: avg };
-  });
-
-  const attendanceData = useMemo(() => {
-    const data: { date: string; count: number }[] = [];
-    const startDate = new Date(currentDate);
-    startDate.setMonth(startDate.getMonth() - 3);
-    for (let i = 0; i < 90; i++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
-      const dateStr = date.toISOString().slice(0, 10);
-      const dayChar = fullDays[date.getDay() === 0 ? 6 : date.getDay() - 1];
-      const doneCount = routines.filter(r => r.day === dayChar && r.done).length;
-      data.push({ date: dateStr, count: doneCount });
-    }
-    return data;
-  }, [routines, currentDate]);
-
-  const today = new Date().getDay();
-  const todayRoutines = useMemo(
-    () => routines.filter(r => r.day === fullDays[today === 0 ? 6 : today - 1] && r.done),
-    [routines]
-  );
-  const sortedBySatisfaction = useMemo(
-    () => [...todayRoutines].sort((a, b) => b.rating - a.rating),
-    [todayRoutines]
-  );
-  const topRoutine = sortedBySatisfaction[0];
-
-  useEffect(() => {
-    let ignore = false;
-    async function fetchDiaryImage() {
-      if (!topRoutine) {
-        setDiaryImageUrl(null);
-        return;
-      }
-      const prompt = getDiaryPrompt(topRoutine);
-      if (!prompt) {
-        setDiaryImageUrl(null);
-        setDiaryError("대표 행동을 그림으로 표현할 수 없습니다.");
-        return;
-      }
-      setDiaryLoading(true);
-      setDiaryError(null);
-      try {
-        const res = await fetch("/openai/image", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.image_url) {
-          setDiaryError("그림 생성 실패");
-          setDiaryImageUrl(null);
-        } else {
-          if (!ignore) setDiaryImageUrl(data.image_url);
-        }
-      } catch {
-        setDiaryError("OpenAI 그림 생성 오류");
-        setDiaryImageUrl(null);
-      } finally {
-        setDiaryLoading(false);
-      }
-    }
-    fetchDiaryImage();
-    return () => { ignore = true; };
-  }, [topRoutine]);
-
-  function downloadCSV() {
-    if (routines.length === 0) {
-      alert("내보낼 데이터가 없습니다.");
-      return;
-    }
-
-    const headers = [
-      "UserID",
-      "Day",
-      "Date",
-      "Task",
-      "Done",
-      "Rating",
-      "IsHabit",
-      "Description",
-    ];
-    const rows = routines.map(({ day, task, done, rating, isHabit, description }) => {
-      const dateStr = formatDiaryDate(day, currentDate, fullDays.indexOf(day));
-      return [
-        userId,
-        day,
-        dateStr,
-        `"${task.replace(/"/g, '""')}"`,
-        done ? "Yes" : "No",
-        rating.toString(),
-        isHabit ? "Yes" : "No",
-        description ? `"${description.replace(/"/g, '""')}"` : "",
-      ];
-    });
-
-    const attendanceHeaders = ["Date", "AttendanceCount"];
-    const attendanceRows = attendanceData.map(({ date, count }) => [date, count.toString()]);
-
-    const routineTotal = routines.filter(r => !r.isHabit).length;
-    const routineDone = routines.filter(r => !r.isHabit && r.done).length;
-    const habitTotal = routines.filter(r => r.isHabit).length;
-    const habitDone = routines.filter(r => r.isHabit && r.done).length;
-    const overallTotal = routines.length;
-    const overallDone = routines.filter(r => r.done).length;
-    const avgSatisfaction = routines.filter(r => r.done).length
-      ? Math.round(
-          routines.filter(r => r.done).reduce((a, c) => a + c.rating, 0) /
-            routines.filter(r => r.done).length,
-        )
-      : 0;
-
-    const summaryRows = [
-      [],
-      ["RoutineCompletion", `${routineTotal ? Math.round((routineDone / routineTotal) * 100) : 0}`],
-      ["HabitCompletion", `${habitTotal ? Math.round((habitDone / habitTotal) * 100) : 0}`],
-      ["OverallCompletion", `${overallTotal ? Math.round((overallDone / overallTotal) * 100) : 0}`],
-      ["AverageSatisfaction", avgSatisfaction.toString()],
-    ];
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map(r => r.join(",")),
-      "",
-      attendanceHeaders.join(","),
-      ...attendanceRows.map(r => r.join(",")),
-      ...summaryRows.map(r => r.join(",")),
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "habit_tracking_with_stats.csv";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }
 
   return (
     <div className="max-w-xl mx-auto p-6 space-y-6 font-sans relative min-h-screen pb-8">
