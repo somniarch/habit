@@ -16,12 +16,11 @@ type RoutineCardProps = {
   routine: Routine;
   onDelete: (id: string) => void;
   onRate: (id: string, rating: number) => void;
-
-  onSuggestHabit: (id: string) => void; // ✅ 수정됨
+  onSuggestHabit: (id: string) => void | Promise<void>; // ✅ 타입 수정
   aiHabitSuggestions: string[];
   isLoading: boolean;
   isActive: boolean;
-  onAddHabit: (id: string, habit: string) => void; // ✅ 타입 통일
+  onAddHabit: (id: string, habit: string) => void;
 };
 
 export default function RoutineCard({
