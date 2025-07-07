@@ -1,5 +1,3 @@
-// src/components/ui/RoutineInputForm.tsx
-
 'use client';
 
 import React, { useState } from 'react';
@@ -24,6 +22,8 @@ export default function RoutineInputForm({ selectedDay, onAdd }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!start || !end || !task.trim()) return;
+
     onAdd({
       id: Date.now().toString(),
       day: selectedDay,
@@ -34,41 +34,46 @@ export default function RoutineInputForm({ selectedDay, onAdd }: Props) {
       rating: 0,
     });
 
-    // 초기화
+    // 입력 초기화
     setStart('');
     setEnd('');
     setTask('');
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-2 bg-white p-4 rounded-xl shadow">
-      <div className="flex gap-2">
+    <form
+      onSubmit={handleSubmit}
+      className="bg-white p-4 rounded-xl shadow-md space-y-3"
+    >
+      <div className="flex gap-3">
         <input
           type="time"
           value={start}
           onChange={(e) => setStart(e.target.value)}
-          className="flex-1 p-2 border rounded"
           required
+          className="w-full p-2 border rounded text-sm"
         />
         <input
           type="time"
           value={end}
           onChange={(e) => setEnd(e.target.value)}
-          className="flex-1 p-2 border rounded"
           required
+          className="w-full p-2 border rounded text-sm"
         />
       </div>
+
       <input
         type="text"
         value={task}
         onChange={(e) => setTask(e.target.value)}
-        placeholder="루틴 입력"
-        className="w-full p-2 border rounded"
+        placeholder="오늘 할 루틴을 입력하세요"
         required
+        className="w-full p-2 border rounded text-sm"
       />
+
       <button
         type="submit"
-        className="w-full bg-black text-white py-2 rounded hover:opacity-90"
+        className="w-full bg-black text-white py-2 rounded hover:bg-gray-800 transition"
       >
         추가하기
       </button>
