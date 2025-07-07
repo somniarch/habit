@@ -44,7 +44,7 @@ export default function HomePage() {
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<string>('월');
-  const [activeTab, setActiveTab] = useState<'routine' | 'stats' | 'diary'>('routine');
+  const [activeTab, setActiveTab] = useState<'routine' | 'statistics' | 'diary'>('routine');
   const [diaryImageUrl] = useState<string | null>(null);
   const [diaryLoading] = useState<boolean>(false);
   const [diaryError] = useState<string | null>(null);
@@ -240,7 +240,7 @@ export default function HomePage() {
         onPrevWeek={handlePrevWeek}
         onNextWeek={handleNextWeek}
       />
-      <TabSwitcher activeTab={activeTab} setActiveTab={setActiveTab} />
+      <TabSwitcher currentTab={activeTab} onTabChange={setActiveTab} />
 
       {activeTab === 'routine' && (
         <>
@@ -261,7 +261,7 @@ export default function HomePage() {
         </>
       )}
 
-      {activeTab === 'stats' && (
+      {activeTab === 'statistics' && (
         <StatisticsCharts
           completionData={completionData}
           habitTypeData={habitTypeData}
