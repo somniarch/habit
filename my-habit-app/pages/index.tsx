@@ -91,8 +91,9 @@ export default function HomePage() {
     setUserAddError('');
   };
 
-  const handleRoutineDeleteConfirm = (i: number) => {
-    setRoutines(routines.filter((_, idx) => idx !== i));
+  // ✅ 수정: index → id
+  const handleRoutineDeleteConfirm = (id: string) => {
+    setRoutines(routines.filter((r) => r.id !== id));
   };
 
   const handleFetchHabitSuggestions = (i: number) => {
@@ -119,8 +120,8 @@ export default function HomePage() {
     setRoutines(updated);
   };
 
+  // ✅ 수정: useEffect에 [routines] 추가
   useEffect(() => {
-    // 예시용 로딩 상태 초기화
     setDiaryLoading(true);
     setTimeout(() => {
       setTopRoutine(routines[0]);
@@ -128,7 +129,7 @@ export default function HomePage() {
       setDiaryError(null);
       setDiaryLoading(false);
     }, 800);
-  }, []);
+  }, [routines]);
 
   if (!isLoggedIn) {
     return (
@@ -164,7 +165,7 @@ export default function HomePage() {
       <RoutineCard
         routine={routine}
         index={idx}
-        onDelete={handleRoutineDeleteConfirm}
+        onDelete={() => handleRoutineDeleteConfirm(routine.id)}
         onRate={(i, rating) => {
           const updated = [...routines];
           updated[i].rating = rating;
