@@ -38,9 +38,6 @@ async function fetchHabitsFromAPI(prompt: string): Promise<{ habit: string; emoj
   }
 }
 
-
-
-
 type Routine = {
   day: string;
   start: string;
@@ -118,8 +115,6 @@ function cleanAndDescribeHabits(
     );
 }
 
-
-
 function Toast({ message, emoji, onClose }: { message: string; emoji: string; onClose: () => void }) {
   useEffect(() => {
     const timer = setTimeout(() => onClose(), 2500);
@@ -173,6 +168,7 @@ function getDiaryPrompt(routine: Routine) {
 
 export default function Page() {
   const [userId, setUserId] = useState("");
+  const [userPw, setUserPw] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [toast, setToast] = useState<{ message: string; emoji: string } | null>(null);
@@ -287,22 +283,22 @@ export default function Page() {
       const saved = localStorage.getItem(routinesKey);
       setRoutines(saved ? JSON.parse(saved) : []);
     }
-  }, [userId]);
+  }, [userId, routinesKey]);
 
   useEffect(() => {
     if (userId) localStorage.setItem(routinesKey, JSON.stringify(routines));
-  }, [routines]);
+  }, [routines, routinesKey, userId]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && userId) {
       const saved = localStorage.getItem(diaryLogsKey);
       setTodayDiaryLogs(saved ? JSON.parse(saved) : {});
     }
-  }, [userId]);
+  }, [userId, diaryLogsKey]);
 
   useEffect(() => {
     if (userId) localStorage.setItem(diaryLogsKey, JSON.stringify(todayDiaryLogs));
-  }, [todayDiaryLogs]);
+  }, [todayDiaryLogs, diaryLogsKey, userId]);
 
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
@@ -352,8 +348,84 @@ export default function Page() {
     }
   }
 
-  return null; // 이 아래에 UI 붙이시면 됩니다
-}
+  // 습관 추가 함수
+  const addHabitBetween = (idx: number, habit: { habit: string; emoji: string }) => {
+    const newHabit: Routine = {
+      day: selectedDay,
+      start: "00:00",
+      end: "00:00",
+      task: habit.habit,
+      done: false,
+      rating: 0,
+      isHabit: true,
+      emoji: habit.emoji,
+      description: "",
+    };
+    
+    const updated = [...routines];
+    updated.splice(idx, 0, newHabit);
+    setRoutines(updated);
+    setToast({ emoji: habit.emoji, message: `${habit.habit} 추가!` });
+  };
+
+  // 샘플 데이터 (실제로는 서버나 로컬스토리지에서 계산)
+  const attendanceData = Array.from({ length: 90 }, (_, i) => ({
+    date: new Date(new Date().setDate(new Date().getDate() - 89 + i)).toISOString().split('T')[0],
+    count: Math.random() > 0.7 ? 1 : 0
+  }));
+
+  const routineCompletionData = [
+    { name: "월", Completion: 85 },
+    { name: "화", Completion: 92 },
+    { name: "수", Completion: 78 },
+    { name: "목", Completion: 88 },
+    { name: "금", Completion: 95 },
+    { name: "토", Completion: 65 },
+    { name: "일", Completion: 70 },
+  ];
+
+  const habitCompletionData = [
+    { name: "물 마시기", Completion: 95 },
+    { name: "스트레칭", Completion: 82 },
+    { name: "명상", Completion: 73 },
+    { name: "산책", Completion: 68 },
+  ];
+
+  const overallCompletionData = [
+    { name: "W1", Completion: 78 },
+    { name: "W2", Completion: 85 },
+    { name: "W3", Completion: 92 },
+    { name: "W4", Completion: 87 },
+  ];
+
+  const satisfactionData = [
+    { name: "월", Satisfaction: 7.5 },
+    { name: "화", Satisfaction: 8.2 },
+    { name: "수", Satisfaction: 6.8 },
+    { name: "목", Satisfaction: 8.5 },
+    { name: "금", Satisfaction: 9.0 },
+    { name: "토", Satisfaction: 7.0 },
+    { name: "일", Satisfaction: 7.3 },
+  ];
+
+  const downloadCSV = () => {
+    const csvContent = "날짜,완료율,만족도\n" + 
+      fullDays.map((day, idx) => `${day},${routineCompletionData[idx].Completion},${satisfactionData[idx].Satisfaction}`).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "habit_tracker_data.csv";
+    link.click();
+  };
+
+  // 오늘의 최고 평점 루틴 찾기
+  const topRoutine = useMemo(() => {
+    const todayRoutines = routines.filter(r => r.done && r.rating > 0);
+    if (todayRoutines.length === 0) return null;
+    return todayRoutines.reduce((prev, current) => 
+      prev.rating > current.rating ? prev : current
+    );
+  }, [routines]);
 
   return (
     <div className="max-w-xl mx-auto p-6 space-y-6 font-sans relative min-h-screen pb-8">
@@ -465,32 +537,31 @@ export default function Page() {
           </div>
 
           <div className="flex justify-center gap-4 mt-4">
-          <button
-            onClick={() => setSelectedTab("routine-habit")}
-            className={`rounded-full px-5 py-2 font-semibold transition ${
-              selectedTab === "routine-habit" ? "bg-black text-white" : "bg-gray-300 text-black"
-            }`}
-          >
-            루틴 및 습관
-          </button>
-          <button
-            onClick={() => setSelectedTab("tracker")}
-            className={`rounded-full px-5 py-2 font-semibold transition ${
-              selectedTab === "tracker" ? "bg-black text-white" : "bg-gray-300 text-black"
-            }`}
-          >
-            트래커
-          </button>
-          <button
-            onClick={() => setSelectedTab("today-diary")}
-            className={`rounded-full px-5 py-2 font-semibold transition ${
-              selectedTab === "today-diary" ? "bg-black text-white" : "bg-gray-300 text-black"
-            }`}
-          >
-            오늘 일기
-          </button>
-        </div>
-
+            <button
+              onClick={() => setSelectedTab("routine-habit")}
+              className={`rounded-full px-5 py-2 font-semibold transition ${
+                selectedTab === "routine-habit" ? "bg-black text-white" : "bg-gray-300 text-black"
+              }`}
+            >
+              루틴 및 습관
+            </button>
+            <button
+              onClick={() => setSelectedTab("tracker")}
+              className={`rounded-full px-5 py-2 font-semibold transition ${
+                selectedTab === "tracker" ? "bg-black text-white" : "bg-gray-300 text-black"
+              }`}
+            >
+              트래커
+            </button>
+            <button
+              onClick={() => setSelectedTab("today-diary")}
+              className={`rounded-full px-5 py-2 font-semibold transition ${
+                selectedTab === "today-diary" ? "bg-black text-white" : "bg-gray-300 text-black"
+              }`}
+            >
+              오늘 일기
+            </button>
+          </div>
 
           {selectedTab === "routine-habit" && (
             <DragDropContext onDragEnd={onDragEnd}>
@@ -594,9 +665,9 @@ export default function Page() {
                         >
                           ✕
                         </button>
-                        {aiHabitSuggestions.length > 0
+                        {(aiHabitSuggestions.length > 0
                           ? aiHabitSuggestions
-                          : habitCandidates.map(h => ({ habit: h, emoji: "🎯" })).slice(0, 3)
+                          : habitCandidates.map(h => ({ habit: h, emoji: "🎯", description: "" })).slice(0, 3)
                         ).map((habit, i) => (
                           <button
                             key={i}
@@ -611,8 +682,6 @@ export default function Page() {
                             {habit.emoji} {habit.habit}
                           </button>
                         ))}
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
@@ -620,134 +689,3 @@ export default function Page() {
               </Droppable>
             </DragDropContext>
           )}
-
-          {selectedTab === "tracker" && (
-            <div className="mt-4 space-y-6">
-              <h2 className="font-semibold text-center">습관 통계</h2>
-              <div className="mb-6">
-                <h3 className="font-semibold mb-2 cursor-pointer" onClick={() => {/* TODO: 기간 필터 변경 */}}>
-                  출석률 캘린더 (최근 3개월)
-                </h3>
-                <CalendarHeatmap
-                  startDate={new Date(new Date().setMonth(new Date().getMonth() - 3))}
-                  endDate={new Date()}
-                  values={attendanceData}
-                  classForValue={(value) => {
-                    if (!value || value.count === 0) return 'color-empty';
-                    if (value.count >= 1) return 'color-scale-4';
-                    if (value.count >= 0.5) return 'color-scale-2';
-                    return 'color-scale-1';
-                  }}
-                  showWeekdayLabels
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-semibold mb-2 cursor-pointer" onClick={() => {/* TODO: 기간 필터 변경 */}}>
-                    루틴 완료율 (%)
-                  </h3>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={routineCompletionData}>
-                      <XAxis dataKey="name" />
-                      <YAxis domain={[0, 100]} />
-                      <Tooltip />
-                      <Bar dataKey="Completion" fill="#0f172a" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2 cursor-pointer" onClick={() => {/* TODO: 기간 필터 변경 */}}>
-                    습관 완료율 (%)
-                  </h3>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={habitCompletionData}>
-                      <XAxis dataKey="name" />
-                      <YAxis domain={[0, 100]} />
-                      <Tooltip />
-                      <Bar dataKey="Completion" fill="#0f172a" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2 cursor-pointer" onClick={() => {/* TODO: 기간 필터 변경 */}}>
-                    전체 완료율 (%)
-                  </h3>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={overallCompletionData}>
-                      <XAxis dataKey="name" />
-                      <YAxis domain={[0, 100]} />
-                      <Tooltip />
-                      <Bar dataKey="Completion" fill="#0f172a" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2 cursor-pointer" onClick={() => {/* TODO: 기간 필터 변경 */}}>
-                    평균 만족도
-                  </h3>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={satisfactionData}>
-                      <XAxis dataKey="name" />
-                      <YAxis domain={[0, 10]} />
-                      <Tooltip />
-                      <Bar dataKey="Satisfaction" fill="#0f172a" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-              <div className="text-center mt-4">
-                <button
-                  onClick={downloadCSV}
-                  className="rounded-full bg-black text-white px-6 py-2 font-semibold hover:bg-gray-800 transition"
-                >
-                  CSV 다운로드
-                </button>
-              </div>
-            </div>
-          )}
-
-          {selectedTab === "today-diary" && (
-            <div className="mt-4 space-y-6 max-h-[480px] overflow-y-auto border rounded p-4 bg-gray-50 pb-8">
-              <h2 className="text-center font-semibold text-xl mb-4">오늘 그림일기</h2>
-              {topRoutine && (
-                <div className="flex flex-col items-center gap-2">
-                  {diaryLoading && <div className="text-gray-500 py-8">그림 생성 중...</div>}
-                  {diaryError && <div className="text-red-600">{diaryError}</div>}
-                  {diaryImageUrl && (
-                    <Image
-                      src={diaryImageUrl}
-                      alt="오늘의 그림일기"
-                      width={320}
-                      height={240}
-                      className="rounded shadow"
-                      style={{ objectFit: "contain" }}
-                    />
-                  )}
-                  <div className="text-center text-lg font-semibold mt-2">
-                    {topRoutine.task} (만족도 {topRoutine.rating})
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {getDiaryPrompt(topRoutine)}
-                  </div>
-                </div>
-              )}
-              {!topRoutine && (
-                <div className="text-center text-gray-400 py-8">
-                  오늘 완료한 루틴/습관이 없습니다.<br />체크 후 그림일기를 확인하세요!
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
-      <style jsx global>{`
-        .color-empty { fill: #eee; }
-        .color-scale-1 { fill: #c6e48b; }
-        .color-scale-2 { fill: #7bc96f; }
-        .color-scale-3 { fill: #239a3b; }
-        .color-scale-4 { fill: #196127; }
-      `}</style>
-    </div>
-  );
-}
-
