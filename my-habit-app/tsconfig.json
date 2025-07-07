@@ -13,9 +13,9 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "baseUrl": ".", // 루트 기준
+    "baseUrl": ".",                        
     "paths": {
-      "@/*": ["src/*"] // ✅ src 내부 구조를 경로 별칭으로 설정
+      "@/*": ["src/*"]                    
     },
     "plugins": [
       {
