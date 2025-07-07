@@ -16,7 +16,7 @@ type RoutineCardProps = {
   routine: Routine;
   onDelete: (id: string) => void;
   onRate: (id: string, rating: number) => void;
-  onSuggestHabit: (id: string) => void | Promise<void>;
+  onSuggestHabit: (id: string) => void;
   aiHabitSuggestions: string[];
   isLoading: boolean;
   isActive: boolean;
