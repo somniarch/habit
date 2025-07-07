@@ -173,7 +173,6 @@ function getDiaryPrompt(routine: Routine) {
 
 export default function Page() {
   const [userId, setUserId] = useState("");
-  const [userPw, setUserPw] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [toast, setToast] = useState<{ message: string; emoji: string } | null>(null);
