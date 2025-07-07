@@ -95,6 +95,21 @@ export default function HomePage() {
         diaryError={diaryError}
         selectedDay={selectedDay}
       />
+      <RoutineCard
+        routine={routine}
+        index={idx}
+        onDelete={handleRoutineDeleteConfirm}
+        onRate={(i, rating) => {
+          const updated = [...routines];
+          updated[i].rating = rating;
+          setRoutines(updated);
+        }}
+        onSuggestHabit={handleFetchHabitSuggestions}
+        aiHabitSuggestions={habitSuggestionIdx === idx ? aiHabitSuggestions : []}
+        isLoading={aiHabitLoading && habitSuggestionIdx === idx}
+        isActive={habitSuggestionIdx === idx}
+        onAddHabit={addHabitBetween}
+      />
       <HabitSuggestion
         aiHabitSuggestions={aiHabitSuggestions}
         habitCandidates={['2분 걷기', '1분 물마시기']}
