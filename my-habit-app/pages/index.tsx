@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import RoutineCard from '@/components/ui/RoutineCard';
 import StatisticsCharts from '@/components/ui/StatisticsCharts';
 import DiaryView from '@/components/ui/DiaryView';
-import { createClient } from '@supabase/supabase-js'; 
+import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,10 +29,10 @@ export default function HomePage() {
   const [suggestions, setSuggestions] = useState<Record<string, string[]>>({});
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
-  const [selectedDay, setSelectedDay] = useState('월');
-  const [diaryImageUrl, setDiaryImageUrl] = useState<string | null>(null);
-  const [diaryLoading, setDiaryLoading] = useState(false);
-  const [diaryError, setDiaryError] = useState<string | null>(null);
+  const [selectedDay] = useState('월'); // ✅ unused setter 제거
+  const [diaryImageUrl] = useState<string | null>(null);
+  const [diaryLoading] = useState(false);
+  const [diaryError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchRoutines = async () => {
@@ -46,7 +46,7 @@ export default function HomePage() {
         return;
       }
 
-      const mapped: Routine[] = data.map((r: any) => ({
+      const mapped: Routine[] = data.map((r: Record<string, any>) => ({
         id: r.id.toString(),
         day: r.day,
         start: r.start,
@@ -146,7 +146,7 @@ export default function HomePage() {
   const habitTypeData = useMemo(() => {
     const result = {
       운동: 0,
-      '정신 건강': 0,
+      정신 건강: 0,
       공부: 0,
       업무: 0,
       기타: 0,
@@ -172,13 +172,13 @@ export default function HomePage() {
     return Object.entries(result).map(([name, value]) => ({ name, value }));
   }, [routines]);
 
-    const weeklyTrend = useMemo(() => {
+  const weeklyTrend = useMemo(() => {
     const weeks: Record<string, { count: number; done: number; totalRating: number }> = {
       'Week 1': { count: 0, done: 0, totalRating: 0 },
     };
 
     routines.forEach(r => {
-      const week = 'Week 1'; // 추후 주차 분기 가능
+      const week = 'Week 1';
       weeks[week].count += 1;
       if (r.done) weeks[week].done += 1;
       weeks[week].totalRating += r.rating;
@@ -199,21 +199,19 @@ export default function HomePage() {
     <main className="max-w-4xl mx-auto p-6 space-y-8">
       <h1 className="text-2xl font-bold">나의 웰빙 루틴</h1>
 
-      {routines
-        .filter((r): r is Routine => !!r)
-        .map(routine => (
-          <RoutineCard
-            key={routine.id}
-            routine={routine}
-            onDelete={handleDelete}
-            onRate={handleRate}
-            onSuggestHabit={handleSuggestHabit}
-            aiHabitSuggestions={suggestions[routine.id] ?? []}
-            isLoading={loadingStates[routine.id] ?? false}
-            isActive={activeCardId === routine.id}
-            onAddHabit={handleAddHabit}
-          />
-        ))}
+      {routines.map(routine => (
+        <RoutineCard
+          key={routine.id}
+          routine={routine}
+          onDelete={handleDelete}
+          onRate={handleRate}
+          onSuggestHabit={handleSuggestHabit}
+          aiHabitSuggestions={suggestions[routine.id] ?? []}
+          isLoading={loadingStates[routine.id] ?? false}
+          isActive={activeCardId === routine.id}
+          onAddHabit={handleAddHabit}
+        />
+      ))}
 
       <StatisticsCharts
         completionData={completionData}
