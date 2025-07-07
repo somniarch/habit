@@ -15,7 +15,6 @@ import {
 
 type CompletionData = { name: string; value: number };
 type HabitTypeData = { name: string; value: number };
-// WeeklyTrendData는 한글 key 대신 영문으로 변경 추천
 type WeeklyTrendData = { name: string; completionRate: number; satisfaction: number };
 
 type Props = {
@@ -79,7 +78,6 @@ export default function StatisticsCharts({
             <XAxis dataKey="name" />
             <YAxis />
             <Tooltip />
-            {/* dataKey 수정 */}
             <Bar dataKey="completionRate" fill={COLORS[1]} />
             <Bar dataKey="satisfaction" fill={COLORS[2]} />
           </BarChart>
