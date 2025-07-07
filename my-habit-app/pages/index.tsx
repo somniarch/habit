@@ -1,12 +1,22 @@
-/* pages/index.tsx */
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import AuthForm from '../src/components/ui/AuthForm';
 import StatisticsCharts from '../src/components/ui/StatisticsCharts';
 import RoutineCard from '../src/components/ui/RoutineCard';
 import HabitSuggestion from '../src/components/ui/HabitSuggestion';
 import DiaryView from '../src/components/ui/DiaryView';
+
+type Routine = {
+  id: string;
+  day: string;
+  start: string;
+  end: string;
+  task: string;
+  done: boolean;
+  rating: number;
+  isHabit?: boolean;
+};
 
 export default function HomePage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -19,7 +29,7 @@ export default function HomePage() {
   const [newUserPw, setNewUserPw] = useState('');
   const [userAddError, setUserAddError] = useState('');
 
-  const [topRoutine, setTopRoutine] = useState(null);
+  const [topRoutine, setTopRoutine] = useState<Routine | null>(null);
   const [diaryImageUrl, setDiaryImageUrl] = useState<string | null>(null);
   const [diaryLoading, setDiaryLoading] = useState(false);
   const [diaryError, setDiaryError] = useState<string | null>(null);
@@ -27,6 +37,23 @@ export default function HomePage() {
   const [aiHabitSuggestions, setAiHabitSuggestions] = useState<string[]>([]);
   const [aiHabitLoading, setAiHabitLoading] = useState(false);
   const [habitSuggestionIdx, setHabitSuggestionIdx] = useState<number | null>(null);
+
+  const [routines, setRoutines] = useState<Routine[]>([
+    {
+      id: '1',
+      day: '월',
+      start: '09:00',
+      end: '10:00',
+      task: '스트레칭',
+      done: true,
+      rating: 4,
+      isHabit: true
+    }
+  ]);
+
+  const selectedDay = '월';
+  const idx = 0;
+  const routine = routines[0];
 
   const completionData = useMemo(() => [{ name: '월', value: 80 }, { name: '화', value: 90 }], []);
   const habitTypeData = useMemo(() => [{ name: '스트레칭', value: 5 }, { name: '걷기', value: 3 }], []);
@@ -63,6 +90,45 @@ export default function HomePage() {
     setNewUserPw('');
     setUserAddError('');
   };
+
+  const handleRoutineDeleteConfirm = (i: number) => {
+    setRoutines(routines.filter((_, idx) => idx !== i));
+  };
+
+  const handleFetchHabitSuggestions = (i: number) => {
+    setAiHabitLoading(true);
+    setHabitSuggestionIdx(i);
+    setTimeout(() => {
+      setAiHabitSuggestions(['3분 걷기', '2분 숨쉬기']);
+      setAiHabitLoading(false);
+    }, 1000);
+  };
+
+  const addHabitBetween = (i: number, habit: string) => {
+    const updated = [...routines];
+    updated.splice(i + 1, 0, {
+      id: Date.now().toString(),
+      day: selectedDay,
+      start: '10:00',
+      end: '10:05',
+      task: habit,
+      done: false,
+      rating: 0,
+      isHabit: true,
+    });
+    setRoutines(updated);
+  };
+
+  useEffect(() => {
+    // 예시용 로딩 상태 초기화
+    setDiaryLoading(true);
+    setTimeout(() => {
+      setTopRoutine(routines[0]);
+      setDiaryImageUrl('/demo-diary.png');
+      setDiaryError(null);
+      setDiaryLoading(false);
+    }, 800);
+  }, []);
 
   if (!isLoggedIn) {
     return (
@@ -114,7 +180,7 @@ export default function HomePage() {
         aiHabitSuggestions={aiHabitSuggestions}
         habitCandidates={['2분 걷기', '1분 물마시기']}
         habitSuggestionIdx={habitSuggestionIdx}
-        addHabitBetween={() => {}}
+        addHabitBetween={(i, habit) => addHabitBetween(i, habit)}
         aiHabitLoading={aiHabitLoading}
         onClose={() => setHabitSuggestionIdx(null)}
       />
