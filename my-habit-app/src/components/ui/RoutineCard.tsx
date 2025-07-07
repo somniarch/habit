@@ -16,7 +16,7 @@ type RoutineCardProps = {
   routine: Routine;
   onDelete: (id: string) => void;
   onRate: (id: string, rating: number) => void;
-  onSuggestHabit: (id: string) => void | Promise<void>; // ✅ 타입 수정
+  onSuggestHabit: (id: string) => void | Promise<void>;
   aiHabitSuggestions: string[];
   isLoading: boolean;
   isActive: boolean;
@@ -68,14 +68,12 @@ export default function RoutineCard({
         </div>
       </div>
 
-      {/* AI 추천 버튼 */}
       <div className="flex justify-between items-center text-sm text-blue-600 mt-1">
         <button onClick={() => onSuggestHabit(routine.id)}>
           + 이 위치에 웰빙 습관 추천받기
         </button>
       </div>
 
-      {/* AI 추천 결과 */}
       {isActive && (
         <div className="mt-2 space-y-2">
           {isLoading ? (
