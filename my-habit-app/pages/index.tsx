@@ -11,6 +11,18 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+type SupabaseRoutine = {
+  id: number;
+  day: string;
+  start: string;
+  end: string;
+  task: string;
+  done: boolean;
+  rating: number | null;
+  is_habit?: boolean;
+  description?: string;
+};
+
 type Routine = {
   id: string;
   day: string;
@@ -29,7 +41,7 @@ export default function HomePage() {
   const [suggestions, setSuggestions] = useState<Record<string, string[]>>({});
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
-  const [selectedDay] = useState('월'); // ✅ unused setter 제거
+  const [selectedDay] = useState('월');
   const [diaryImageUrl] = useState<string | null>(null);
   const [diaryLoading] = useState(false);
   const [diaryError] = useState<string | null>(null);
@@ -41,12 +53,12 @@ export default function HomePage() {
         .select('*')
         .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('루틴 불러오기 오류:', error.message);
+      if (error || !data) {
+        console.error('루틴 불러오기 오류:', error?.message);
         return;
       }
 
-      const mapped: Routine[] = data.map((r: Record<string, any>) => ({
+      const mapped: Routine[] = data.map((r: SupabaseRoutine) => ({
         id: r.id.toString(),
         day: r.day,
         start: r.start,
