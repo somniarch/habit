@@ -14,19 +14,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// Supabase 원형 타입
-type SupabaseRoutine = {
-  id: number;
-  day: string;
-  start: string;
-  end: string;
-  task: string;
-  done: boolean;
-  rating: number | null;
-  is_habit?: boolean;
-  description?: string;
-};
-
 type Routine = {
   id: string;
   day: string;
@@ -49,6 +36,20 @@ export default function HomePage() {
   const [diaryImageUrl] = useState<string | null>(null);
   const [diaryLoading] = useState<boolean>(false);
   const [diaryError] = useState<string | null>(null);
+  const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
+
+  const weekInfo = useMemo(() => {
+    const today = new Date();
+    today.setDate(today.getDate() + currentWeekOffset * 7);
+    const year = today.getFullYear().toString().slice(2);
+    const month = (today.getMonth() + 1).toString().padStart(2, '0');
+    const date = today.getDate().toString().padStart(2, '0');
+    const weekNum = currentWeekOffset + 1;
+    return `${year}.${month}.${date}.W${weekNum}`;
+  }, [currentWeekOffset]);
+
+  const handlePrevWeek = () => setCurrentWeekOffset((prev) => prev - 1);
+  const handleNextWeek = () => setCurrentWeekOffset((prev) => prev + 1);
 
   useEffect(() => {
     const fetchRoutines = async () => {
@@ -62,7 +63,7 @@ export default function HomePage() {
         return;
       }
 
-      const mapped: Routine[] = (data as SupabaseRoutine[]).map((r) => ({
+      const mapped: Routine[] = data.map((r: any) => ({
         id: r.id.toString(),
         day: r.day,
         start: r.start,
@@ -73,6 +74,7 @@ export default function HomePage() {
         isHabit: r.is_habit,
         description: r.description,
       }));
+
       setRoutines(mapped);
     };
 
@@ -222,7 +224,14 @@ export default function HomePage() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-      <WeekdaySelector selectedDay={selectedDay} onSelectDay={setSelectedDay} />
+      <WeekdaySelector
+        selectedDay={selectedDay}
+        onSelectDay={setSelectedDay}
+        weekInfo={weekInfo}
+        onPrevWeek={handlePrevWeek}
+        onNextWeek={handleNextWeek}
+      />
+
       <TabSwitcher activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {activeTab === 'routine' && (
