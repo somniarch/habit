@@ -5,7 +5,7 @@ import Image from "next/image";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell
 } from "recharts";
-import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
+
 
 type Routine = {
   id: string;
@@ -23,6 +23,18 @@ type Routine = {
 const habitCandidates = ["2분 스트레칭", "3분 걷기", "1분 명상", "2분 숨쉬기", "3분 독서"];
 const fullDays = ["월", "화", "수", "목", "금", "토", "일"];
 const dayLetters = fullDays.map(d => d[0]);
+const handleDragEnd = (event: DragEndEvent) => {
+  const { active, over } = event;
+  if (!over || active.id === over.id) return;
+
+  const dayRoutines = routines.filter(r => r.day === selectedDay);
+  const otherRoutines = routines.filter(r => r.day !== selectedDay);
+  const oldIndex = dayRoutines.findIndex(r => r.id === active.id);
+  const newIndex = dayRoutines.findIndex(r => r.id === over.id);
+
+  const sorted = arrayMove(dayRoutines, oldIndex, newIndex);
+  setRoutines([...otherRoutines, ...sorted]);
+};
 
 const habitEmojis: Record<string, string> = {
   숨: "🌬️",
@@ -657,46 +669,72 @@ export default function Page() {
                 </div>
 
                 {/* 루틴 목록 */}
-                <DragDropContext onDragEnd={onDragEnd}>
-                  <Droppable droppableId="routines">
-                    {(provided) => (
-                      <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-3">
-                        {routines
-                          .filter(r => r.day === selectedDay)
-                          .map((routine, index) => (
-                            <Draggable key={routine.id} draggableId={routine.id} index={index}>
-                              {(provided) => (
+                    import {
+                              DndContext,
+                              PointerSensor,
+                              useSensor,
+                              useSensors,
+                              closestCenter,
+                              DragEndEvent,
+                            } from "@dnd-kit/core";
+                            import {
+                              SortableContext,
+                              useSortable,
+                              verticalListSortingStrategy,
+                              arrayMove,
+                            } from "@dnd-kit/sortable";
+                            import { CSS } from "@dnd-kit/utilities";
+                            
+                            // 1. Sortable 카드 컴포넌트
+                            function SortableRoutineCard({ routine, updateRoutine }: { routine: Routine, updateRoutine: (id: string) => void }) {
+                              const {
+                                attributes,
+                                listeners,
+                                setNodeRef,
+                                transform,
+                                transition,
+                              } = useSortable({ id: routine.id });
+                            
+                              const style = {
+                                transform: CSS.Transform.toString(transform),
+                                transition,
+                              };
+                            
+                              return (
                                 <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
+                                  ref={setNodeRef}
+                                  style={style}
+                                  {...attributes}
+                                  {...listeners}
                                   className={`group ${
-                                    routine.isHabit 
-                                      ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200' 
-                                      : 'bg-gray-50 border-gray-200'
+                                    routine.isHabit
+                                      ? "bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200"
+                                      : "bg-gray-50 border-gray-200"
                                   } border-2 rounded-xl p-4 transition hover:shadow-md`}
                                 >
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3 flex-1">
-                                      {/* 드래그 핸들 */}
+                                      {/* 드래그 핸들 아이콘 */}
                                       <div className="text-gray-400 cursor-move">
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
                                         </svg>
                                       </div>
-
+                            
                                       {/* 체크박스 */}
                                       <input
                                         type="checkbox"
                                         checked={routine.done}
-                                        onChange={(e) => {
-                                          e.stopPropagation();
-                                          setRoutines(prev => prev.map(r => 
-                                            r.id === routine.id ? { ...r, done: !r.done } : r
-                                          ));
-                                        }}
+                                        onChange={() => updateRoutine(routine.id)}
                                         className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500"
                                       />
+                                      <span>{routine.task}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            }
+
 
                                       {/* 시간 */}
                                       {!routine.isHabit && (
