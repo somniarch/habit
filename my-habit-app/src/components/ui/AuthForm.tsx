@@ -12,3 +12,4 @@ export default function AuthForm({
     <div className="max-w-md mx-auto mt-20">{/* 로그인/회원가입 UI */}</div>
   );
 }
+
