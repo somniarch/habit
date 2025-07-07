@@ -149,7 +149,9 @@ export default function HomePage() {
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-8">
       <h1 className="text-2xl font-bold">나의 웰빙 루틴</h1>
-      {routines.map(routine => (
+      {routines
+      .filter((r): r is Routine => !!r) // undefined 제거
+      .map(routine => (
         <RoutineCard
           key={routine.id}
           routine={routine}
@@ -161,7 +163,7 @@ export default function HomePage() {
           isActive={activeCardId === routine.id}
           onAddHabit={handleAddHabit}
         />
-      ))}
+    ))}
 
       <StatisticsCharts
         completionData={completionData}
