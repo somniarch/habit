@@ -36,7 +36,7 @@ export default function HomePage() {
 
   const [aiHabitSuggestions, setAiHabitSuggestions] = useState<string[]>([]);
   const [aiHabitLoading, setAiHabitLoading] = useState(false);
-  const [habitSuggestionIdx, setHabitSuggestionIdx] = useState<number | null>(null);
+  const [suggestTargetId, setSuggestTargetId] = useState<string | null>(null);
 
   const [routines, setRoutines] = useState<Routine[]>([
     {
@@ -52,7 +52,6 @@ export default function HomePage() {
   ]);
 
   const selectedDay = '월';
-  const idx = 0;
   const routine = routines[0];
 
   const completionData = useMemo(() => [{ name: '월', value: 80 }, { name: '화', value: 90 }], []);
@@ -91,23 +90,24 @@ export default function HomePage() {
     setUserAddError('');
   };
 
-  // ✅ 수정: index → id
   const handleRoutineDeleteConfirm = (id: string) => {
     setRoutines(routines.filter((r) => r.id !== id));
   };
 
-  const handleFetchHabitSuggestions = (i: number) => {
+  const handleFetchHabitSuggestions = (id: string) => {
     setAiHabitLoading(true);
-    setHabitSuggestionIdx(i);
+    setSuggestTargetId(id);
     setTimeout(() => {
       setAiHabitSuggestions(['3분 걷기', '2분 숨쉬기']);
       setAiHabitLoading(false);
     }, 1000);
   };
 
-  const addHabitBetween = (i: number, habit: string) => {
+  const addHabitBetween = (id: string, habit: string) => {
+    const idx = routines.findIndex((r) => r.id === id);
+    if (idx === -1) return;
     const updated = [...routines];
-    updated.splice(i + 1, 0, {
+    updated.splice(idx + 1, 0, {
       id: Date.now().toString(),
       day: selectedDay,
       start: '10:00',
@@ -120,7 +120,15 @@ export default function HomePage() {
     setRoutines(updated);
   };
 
-  // ✅ 수정: useEffect에 [routines] 추가
+  const handleRateChange = (id: string, rating: number) => {
+    const updated = [...routines];
+    const targetIdx = updated.findIndex((r) => r.id === id);
+    if (targetIdx !== -1) {
+      updated[targetIdx].rating = rating;
+      setRoutines(updated);
+    }
+  };
+
   useEffect(() => {
     setDiaryLoading(true);
     setTimeout(() => {
@@ -164,26 +172,16 @@ export default function HomePage() {
       />
       <RoutineCard
         routine={routine}
-        index={idx}
-        onDelete={() => handleRoutineDeleteConfirm(routine.id)}
-        onRate={(i, rating) => {
-          const updated = [...routines];
-          updated[i].rating = rating;
-          setRoutines(updated);
-        }}
-        onSuggestHabit={handleFetchHabitSuggestions}
-        aiHabitSuggestions={habitSuggestionIdx === idx ? aiHabitSuggestions : []}
-        isLoading={aiHabitLoading && habitSuggestionIdx === idx}
-        isActive={habitSuggestionIdx === idx}
-        onAddHabit={addHabitBetween}
+        onDelete={handleRoutineDeleteConfirm}
+        onRate={handleRateChange}
       />
       <HabitSuggestion
         aiHabitSuggestions={aiHabitSuggestions}
         habitCandidates={['2분 걷기', '1분 물마시기']}
-        habitSuggestionIdx={habitSuggestionIdx}
-        addHabitBetween={(i, habit) => addHabitBetween(i, habit)}
+        habitSuggestionIdx={suggestTargetId}
+        addHabitBetween={addHabitBetween}
         aiHabitLoading={aiHabitLoading}
-        onClose={() => setHabitSuggestionIdx(null)}
+        onClose={() => setSuggestTargetId(null)}
       />
     </div>
   );
