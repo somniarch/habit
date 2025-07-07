@@ -31,16 +31,18 @@ export default function HomePage() {
   const [newUserPw, setNewUserPw] = useState('');
   const [userAddError, setUserAddError] = useState('');
 
-  const [routines, setRoutines] = useState<Routine[]>([]);
-  const [topRoutine, setTopRoutine] = useState<Routine | null>(null);
+  const completionData = useMemo(() => [{ name: '월', value: 80 }, { name: '화', value: 90 }], []);
+  const habitTypeData = useMemo(() => [{ name: '스트레칭', value: 5 }, { name: '걷기', value: 3 }], []);
+  const weeklyTrend = useMemo(() => [{ name: '1주 전', 완료율: 85, 만족도: 4 }], []);
+  const COLORS = ['#4F46E5', '#7C3AED', '#EC4899'];
 
-  const [diaryImageUrl, setDiaryImageUrl] = useState<string | null>(null);
-  const [diaryLoading, setDiaryLoading] = useState(false);
-  const [diaryError, setDiaryError] = useState<string | null>(null);
-
-  const [aiHabitSuggestions, setAiHabitSuggestions] = useState<string[]>([]);
-  const [aiHabitLoading, setAiHabitLoading] = useState(false);
-  const [habitSuggestionIdx, setHabitSuggestionIdx] = useState<number | null>(null);
+  const downloadCSV = () => {
+    const csvContent = 'data:text/csv;charset=utf-8,' + encodeURI('날짜,활동\n2024-01-01,스트레칭');
+    const link = document.createElement('a');
+    link.setAttribute('href', csvContent);
+    link.setAttribute('download', 'habit_data.csv');
+    link.click();
+  };
 
   const handleLogin = () => {
     if (!userId.trim() || !userPw.trim()) {
@@ -63,19 +65,6 @@ export default function HomePage() {
     setNewUserId('');
     setNewUserPw('');
     setUserAddError('');
-  };
-
-  const completionData = useMemo(() => [{ name: '월', value: 80 }, { name: '화', value: 90 }], []);
-  const habitTypeData = useMemo(() => [{ name: '스트레칭', value: 5 }, { name: '걷기', value: 3 }], []);
-  const weeklyTrend = useMemo(() => [{ name: '1주 전', 완료율: 85, 만족도: 4 }], []);
-  const COLORS = ['#4F46E5', '#7C3AED', '#EC4899'];
-
-  const downloadCSV = () => {
-    const csvContent = 'data:text/csv;charset=utf-8,' + encodeURI('날짜,활동\n2024-01-01,스트레칭');
-    const link = document.createElement('a');
-    link.setAttribute('href', csvContent);
-    link.setAttribute('download', 'habit_data.csv');
-    link.click();
   };
 
   if (!isLoggedIn) {
@@ -103,18 +92,18 @@ export default function HomePage() {
         COLORS={COLORS}
       />
       <DiaryView
-        topRoutine={topRoutine}
-        diaryImageUrl={diaryImageUrl}
-        diaryLoading={diaryLoading}
-        diaryError={diaryError}
+        topRoutine={null}
+        diaryImageUrl={null}
+        diaryLoading={false}
+        diaryError={null}
       />
       <HabitSuggestion
-        aiHabitSuggestions={aiHabitSuggestions}
+        aiHabitSuggestions={[]}
         habitCandidates={['2분 걷기', '1분 물마시기']}
-        habitSuggestionIdx={habitSuggestionIdx}
+        habitSuggestionIdx={null}
         addHabitBetween={() => {}}
-        aiHabitLoading={aiHabitLoading}
-        onClose={() => setHabitSuggestionIdx(null)}
+        aiHabitLoading={false}
+        onClose={() => {}}
       />
     </div>
   );
