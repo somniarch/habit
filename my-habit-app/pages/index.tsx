@@ -45,10 +45,13 @@ export default function HomePage() {
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<string>('월');
   const [activeTab, setActiveTab] = useState<'routine' | 'statistics' | 'diary'>('routine');
-  const [diaryImageUrl] = useState<string | null>(null);
-  const [diaryLoading] = useState<boolean>(false);
-  const [diaryError] = useState<string | null>(null);
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
+
+  // 오늘 완료된 루틴/습관(task) 목록
+  const completedTasks = useMemo(
+    () => routines.filter(r => r.day === selectedDay && r.done).map(r => r.task),
+    [routines, selectedDay]
+  );
 
   const weekInfo = useMemo(() => {
     const today = new Date();
@@ -60,8 +63,8 @@ export default function HomePage() {
     return `${year}.${month}.${date}.W${weekNum}`;
   }, [currentWeekOffset]);
 
-  const handlePrevWeek = () => setCurrentWeekOffset((prev) => prev - 1);
-  const handleNextWeek = () => setCurrentWeekOffset((prev) => prev + 1);
+  const handlePrevWeek = () => setCurrentWeekOffset(prev => prev - 1);
+  const handleNextWeek = () => setCurrentWeekOffset(prev => prev + 1);
 
   useEffect(() => {
     const fetchRoutines = async () => {
@@ -75,7 +78,7 @@ export default function HomePage() {
         return;
       }
 
-      const mapped: Routine[] = (data as RawRoutine[]).map((r) => ({
+      const mapped: Routine[] = (data as RawRoutine[]).map(r => ({
         id: r.id.toString(),
         day: r.day,
         start: r.start,
@@ -93,19 +96,19 @@ export default function HomePage() {
   }, []);
 
   const handleDelete = (id: string) => {
-    setRoutines((prev) => prev.filter((r) => r.id !== id));
+    setRoutines(prev => prev.filter(r => r.id !== id));
   };
 
   const handleRate = (id: string, rating: number) => {
-    setRoutines((prev) => prev.map((r) => (r.id === id ? { ...r, rating } : r)));
+    setRoutines(prev => prev.map(r => (r.id === id ? { ...r, rating } : r)));
   };
 
   const handleSuggestHabit = async (id: string) => {
-    const routine = routines.find((r) => r.id === id);
-    const nextIndex = routines.findIndex((r) => r.id === id) + 1;
+    const routine = routines.find(r => r.id === id);
+    const nextIndex = routines.findIndex(r => r.id === id) + 1;
     const next = routines[nextIndex];
 
-    setLoadingStates((prev) => ({ ...prev, [id]: true }));
+    setLoadingStates(prev => ({ ...prev, [id]: true }));
     setActiveCardId(id);
 
     try {
@@ -116,18 +119,17 @@ export default function HomePage() {
           pairs: [{ prevTask: routine?.task, nextTask: next?.task }],
         }),
       });
-
       const { result } = await res.json();
-      setSuggestions((prev) => ({ ...prev, [id]: result[0] }));
+      setSuggestions(prev => ({ ...prev, [id]: result[0] }));
     } catch (error) {
       console.error('습관 추천 오류:', error);
     } finally {
-      setLoadingStates((prev) => ({ ...prev, [id]: false }));
+      setLoadingStates(prev => ({ ...prev, [id]: false }));
     }
   };
 
   const handleAddHabit = (id: string, habit: string) => {
-    const index = routines.findIndex((r) => r.id === id);
+    const index = routines.findIndex(r => r.id === id);
     const newHabit: Routine = {
       id: Date.now().toString(),
       day: routines[index].day,
@@ -144,22 +146,14 @@ export default function HomePage() {
   };
 
   const handleAddRoutine = (routine: Routine) => {
-    setRoutines((prev) => [...prev, routine]);
+    setRoutines(prev => [...prev, routine]);
   };
 
   const downloadCSV = () => {
     const headers = ['날짜', '시작', '종료', '활동', '만족도'];
-    const rows = routines.map((r) => [
-      r.day,
-      r.start,
-      r.end,
-      r.task,
-      r.rating.toString(),
-    ]);
-    const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
-    const blob = new Blob(['\ufeff' + csv], {
-      type: 'text/csv;charset=utf-8;',
-    });
+    const rows = routines.map(r => [r.day, r.start, r.end, r.task, r.rating.toString()]);
+    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `habit_${new Date().toISOString().slice(0, 10)}.csv`;
@@ -168,12 +162,11 @@ export default function HomePage() {
 
   const completionData = useMemo(() => {
     const grouped: Record<string, { total: number; done: number }> = {};
-    routines.forEach((r) => {
+    routines.forEach(r => {
       if (!grouped[r.day]) grouped[r.day] = { total: 0, done: 0 };
       grouped[r.day].total += 1;
       if (r.done) grouped[r.day].done += 1;
     });
-
     return Object.entries(grouped).map(([day, val]) => ({
       name: day,
       value: Math.round((val.done / val.total) * 100),
@@ -181,55 +174,38 @@ export default function HomePage() {
   }, [routines]);
 
   const habitTypeData = useMemo(() => {
-    const result = {
-      운동: 0,
-      '정신 건강': 0,
-      공부: 0,
-      업무: 0,
-      기타: 0,
-    };
-
-    routines.forEach((r) => {
+    const result = { 운동: 0, '정신 건강': 0, 공부: 0, 업무: 0, 기타: 0 };
+    routines.forEach(r => {
       if (!r.isHabit) return;
       const t = r.task;
-      if (t.includes('운동') || t.includes('스트레칭') || t.includes('산책') || t.includes('요가')) {
-        result.운동++;
-      } else if (t.includes('명상') || t.includes('호흡') || t.includes('휴식') || t.includes('감정일기')) {
-        result['정신 건강']++;
-      } else if (t.includes('공부') || t.includes('학습') || t.includes('독서') || t.includes('코딩')) {
-        result.공부++;
-      } else if (t.includes('업무') || t.includes('회의') || t.includes('보고서')) {
-        result.업무++;
-      } else {
-        result.기타++;
-      }
+      if (['운동', '스트레칭', '산책', '요가'].some(k => t.includes(k))) result.운동++;
+      else if (['명상', '호흡', '휴식', '감정일기'].some(k => t.includes(k))) result['정신 건강']++;
+      else if (['공부', '학습', '독서', '코딩'].some(k => t.includes(k))) result.공부++;
+      else if (['업무', '회의', '보고서'].some(k => t.includes(k))) result.업무++;
+      else result.기타++;
     });
-
     return Object.entries(result).map(([name, value]) => ({ name, value }));
   }, [routines]);
 
   const weeklyTrend = useMemo(() => {
-  const weeks: Record<string, { count: number; done: number; totalRating: number }> = {
-    'Week 1': { count: 0, done: 0, totalRating: 0 },
-  };
-
-  routines.forEach((r) => {
-    const week = 'Week 1';
-    weeks[week].count += 1;
-    if (r.done) weeks[week].done += 1;
-    weeks[week].totalRating += r.rating;
-  });
-
-  return Object.entries(weeks).map(([name, v]) => ({
-    name,
-    completionRate: v.count ? Math.round((v.done / v.count) * 100) : 0,
-    satisfaction: v.count ? parseFloat((v.totalRating / v.count).toFixed(1)) : 0,
-  }));
-}, [routines]);
-
+    const weeks: Record<string, { count: number; done: number; totalRating: number }> = {
+      'Week 1': { count: 0, done: 0, totalRating: 0 },
+    };
+    routines.forEach(r => {
+      const week = 'Week 1';
+      weeks[week].count += 1;
+      if (r.done) weeks[week].done += 1;
+      weeks[week].totalRating += r.rating;
+    });
+    return Object.entries(weeks).map(([name, v]) => ({
+      name,
+      completionRate: v.count ? Math.round((v.done / v.count) * 100) : 0,
+      satisfaction: v.count ? parseFloat((v.totalRating / v.count).toFixed(1)) : 0,
+    }));
+  }, [routines]);
 
   const topRoutine = routines
-    .filter((r) => r.day === selectedDay && r.done)
+    .filter(r => r.day === selectedDay && r.done)
     .sort((a, b) => b.rating - a.rating)[0] || null;
 
   return (
@@ -241,12 +217,13 @@ export default function HomePage() {
         onPrevWeek={handlePrevWeek}
         onNextWeek={handleNextWeek}
       />
+
       <TabSwitcher currentTab={activeTab} onTabChange={setActiveTab} />
 
       {activeTab === 'routine' && (
         <>
           <RoutineInputForm selectedDay={selectedDay} onAdd={handleAddRoutine} />
-          {routines.map((routine) => (
+          {routines.map(routine => (
             <RoutineCard
               key={routine.id}
               routine={routine}
@@ -275,9 +252,7 @@ export default function HomePage() {
       {activeTab === 'diary' && (
         <DiaryView
           topRoutine={topRoutine}
-          diaryLoading={diaryLoading}
-          diaryError={diaryError}
-          diaryImageUrl={diaryImageUrl}
+          completedTasks={completedTasks}
           selectedDay={selectedDay}
         />
       )}
