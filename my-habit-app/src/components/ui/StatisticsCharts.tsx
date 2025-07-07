@@ -1,5 +1,3 @@
-// src/components/ui/StatisticsCharts.tsx
-
 'use client';
 
 import React from 'react';
@@ -10,55 +8,89 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts';
 
-type SatisfactionData = {
-  name: string; // 전체, 루틴, 습관
-  달성도: number; // 0 ~ 100 (%)
-  만족도: number; // 0 ~ 5
-};
+type CompletionData = { name: string; value: number };
+type HabitTypeData = { name: string; value: number };
+type WeeklyTrendData = { name: string; 완료율: number; 만족도: number };
 
 type Props = {
-  data: SatisfactionData[];
+  completionData: CompletionData[];
+  habitTypeData: HabitTypeData[];
+  weeklyTrend: WeeklyTrendData[];
+  downloadCSV: () => void;
+  COLORS: string[];
 };
 
-export default function StatisticsCharts({ data }: Props) {
+export default function StatisticsCharts({
+  completionData,
+  habitTypeData,
+  weeklyTrend,
+  downloadCSV,
+  COLORS,
+}: Props) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* 달성도 (%) */}
-      <div className="bg-white rounded-xl shadow p-6">
-        <h3 className="text-base font-semibold text-gray-800 mb-4">달성도 (%)</h3>
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart data={data}>
+    <div className="space-y-8">
+      {/* 완료율 차트 */}
+      <div>
+        <h3 className="text-lg font-semibold mb-2">요일별 완료율 (%)</h3>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={completionData}>
             <XAxis dataKey="name" />
-            <YAxis domain={[0, 100]} />
+            <YAxis />
             <Tooltip />
-            <Bar
-              dataKey="달성도"
-              fill="#0f0f0f"
-              radius={[4, 4, 0, 0]}
-              barSize={36}
-            />
+            <Bar dataKey="value" fill={COLORS[0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* 만족도 (5점 만점) */}
-      <div className="bg-white rounded-xl shadow p-6">
-        <h3 className="text-base font-semibold text-gray-800 mb-4">만족도 (5점)</h3>
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart data={data}>
-            <XAxis dataKey="name" />
-            <YAxis domain={[0, 5]} />
+      {/* 습관 유형 파이 차트 */}
+      <div>
+        <h3 className="text-lg font-semibold mb-2">습관 유형 비율</h3>
+        <ResponsiveContainer width="100%" height={200}>
+          <PieChart>
+            <Pie
+              data={habitTypeData}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              outerRadius={80}
+              label
+            >
+              {habitTypeData.map((_, index) => (
+                <Cell key={index} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Pie>
             <Tooltip />
-            <Bar
-              dataKey="만족도"
-              fill="#0f0f0f"
-              radius={[4, 4, 0, 0]}
-              barSize={36}
-            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* 주간 트렌드 라인 */}
+      <div>
+        <h3 className="text-lg font-semibold mb-2">주간 루틴 트렌드</h3>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={weeklyTrend}>
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey="완료율" fill={COLORS[1]} />
+            <Bar dataKey="만족도" fill={COLORS[2]} />
           </BarChart>
         </ResponsiveContainer>
+      </div>
+
+      <div className="text-right">
+        <button
+          onClick={downloadCSV}
+          className="px-4 py-2 bg-blue-600 text-white rounded-full text-sm hover:bg-blue-700"
+        >
+          CSV 다운로드
+        </button>
       </div>
     </div>
   );
