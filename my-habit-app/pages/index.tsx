@@ -209,23 +209,24 @@ export default function HomePage() {
   }, [routines]);
 
   const weeklyTrend = useMemo(() => {
-    const weeks: Record<string, { count: number; done: number; totalRating: number }> = {
-      'Week 1': { count: 0, done: 0, totalRating: 0 },
-    };
+  const weeks: Record<string, { count: number; done: number; totalRating: number }> = {
+    'Week 1': { count: 0, done: 0, totalRating: 0 },
+  };
 
-    routines.forEach((r) => {
-      const week = 'Week 1';
-      weeks[week].count += 1;
-      if (r.done) weeks[week].done += 1;
-      weeks[week].totalRating += r.rating;
-    });
+  routines.forEach((r) => {
+    const week = 'Week 1';
+    weeks[week].count += 1;
+    if (r.done) weeks[week].done += 1;
+    weeks[week].totalRating += r.rating;
+  });
 
-    return Object.entries(weeks).map(([name, v]) => ({
-      name,
-      완료율: v.count ? Math.round((v.done / v.count) * 100) : 0,
-      만족도: v.count ? parseFloat((v.totalRating / v.count).toFixed(1)) : 0,
-    }));
-  }, [routines]);
+  return Object.entries(weeks).map(([name, v]) => ({
+    name,
+    completionRate: v.count ? Math.round((v.done / v.count) * 100) : 0,
+    satisfaction: v.count ? parseFloat((v.totalRating / v.count).toFixed(1)) : 0,
+  }));
+}, [routines]);
+
 
   const topRoutine = routines
     .filter((r) => r.day === selectedDay && r.done)
