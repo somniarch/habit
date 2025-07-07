@@ -7,19 +7,6 @@ import HabitSuggestion from '../src/components/ui/HabitSuggestion';
 import StatisticsCharts from '../src/components/ui/StatisticsCharts';
 import DiaryView from '../src/components/ui/DiaryView';
 
-// 타입 정의
-interface Routine {
-  day: string;
-  start: string;
-  end: string;
-  task: string;
-  done: boolean;
-  rating: number;
-  isHabit?: boolean;
-  description?: string;
-  emoji?: string;
-}
-
 export default function HomePage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userId, setUserId] = useState('');
