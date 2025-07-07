@@ -1,56 +1,76 @@
+// src/components/ui/RoutineInputForm.tsx
+
 'use client';
 
 import React, { useState } from 'react';
 
 type Props = {
-  onAddRoutine: (start: string, end: string, task: string) => void;
+  selectedDay: string;
+  onAdd: (routine: {
+    id: string;
+    day: string;
+    start: string;
+    end: string;
+    task: string;
+    done: boolean;
+    rating: number;
+  }) => void;
 };
 
-export default function RoutineInputForm({ onAddRoutine }: Props) {
+export default function RoutineInputForm({ selectedDay, onAdd }: Props) {
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [task, setTask] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!start || !end || !task.trim()) return;
-    onAddRoutine(start, end, task.trim());
+    onAdd({
+      id: Date.now().toString(),
+      day: selectedDay,
+      start,
+      end,
+      task,
+      done: false,
+      rating: 0,
+    });
+
+    // 초기화
     setStart('');
     setEnd('');
     setTask('');
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2 p-4 bg-white rounded-lg shadow-sm">
+    <form onSubmit={handleSubmit} className="space-y-2 bg-white p-4 rounded-xl shadow">
       <div className="flex gap-2">
         <input
           type="time"
           value={start}
-          onChange={e => setStart(e.target.value)}
-          className="w-full p-2 border rounded text-sm"
+          onChange={(e) => setStart(e.target.value)}
+          className="flex-1 p-2 border rounded"
           required
         />
         <input
           type="time"
           value={end}
-          onChange={e => setEnd(e.target.value)}
-          className="w-full p-2 border rounded text-sm"
+          onChange={(e) => setEnd(e.target.value)}
+          className="flex-1 p-2 border rounded"
           required
         />
       </div>
       <input
         type="text"
-        placeholder="루틴 또는 습관 내용 입력"
         value={task}
-        onChange={e => setTask(e.target.value)}
-        className="w-full p-2 border rounded text-sm"
+        onChange={(e) => setTask(e.target.value)}
+        placeholder="루틴 입력"
+        className="w-full p-2 border rounded"
         required
       />
       <button
         type="submit"
-        className="self-end px-4 py-2 text-white bg-black rounded text-sm"
+        className="w-full bg-black text-white py-2 rounded hover:opacity-90"
       >
-        추가
+        추가하기
       </button>
     </form>
   );
