@@ -48,12 +48,20 @@ export default function RoutineCard({
           </span>{' '}
           {displayTask} {routine.done && '✔'}
         </div>
-        <input
-          type="checkbox"
-          checked={routine.done}
-          readOnly
-          className="w-5 h-5 accent-blue-500"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={routine.done}
+            readOnly
+            className="w-5 h-5 accent-blue-500"
+          />
+          <button
+            onClick={() => onDelete(routine.id)}
+            className="text-red-500 text-xs hover:underline"
+          >
+            삭제
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-1">
