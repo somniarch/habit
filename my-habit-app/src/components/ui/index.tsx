@@ -1,7 +1,7 @@
-import AuthForm from './AuthForm';
-import RoutineCard from './RoutineCard';
-import StatisticsCharts from './StatisticsCharts';
-import DiaryView from './DiaryView';
+import AuthForm from '@/components/ui/AuthForm';
+import RoutineCard from '@/components/ui/RoutineCard';
+import StatisticsCharts from '@/components/ui/StatisticsCharts';
+import DiaryView from '@/components/ui/DiaryView';
 
 export {
   AuthForm,
