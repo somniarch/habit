@@ -33,8 +33,10 @@ export default function RoutineCard({
   isActive,
   onAddHabit,
 }: RoutineCardProps) {
+  if (!routine) return null; // ✅ 안전하게 처리
+
   const displayTask = routine.isHabit
-    ? routine.task.replace(/\(\s*습관\s*\)-?/, '')
+    ? routine.task?.replace(/\(\s*습관\s*\)-?/, '') // ?로 안정성 강화
     : routine.task;
 
   const bgStyle = routine.isHabit
