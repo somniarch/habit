@@ -129,7 +129,6 @@ export default function HomePage() {
     link.click();
   };
 
-  // ✅ 통계: 요일별 완료율
   const completionData = useMemo(() => {
     const grouped: Record<string, { total: number; done: number }> = {};
     routines.forEach(r => {
@@ -144,37 +143,36 @@ export default function HomePage() {
     }));
   }, [routines]);
 
- // ✅ 통계: 습관 유형별 개수
-const habitTypeData = useMemo(() => {
-  const result = {
-    운동: 0,
-    정신 건강: 0,
-    공부: 0,
-    업무: 0,
-    기타: 0,
-  };
+  const habitTypeData = useMemo(() => {
+    const result = {
+      운동: 0,
+      '정신 건강': 0,
+      공부: 0,
+      업무: 0,
+      기타: 0,
+    };
 
-  routines.forEach(r => {
-    if (!r.isHabit) return;
-    const t = r.task;
+    routines.forEach(r => {
+      if (!r.isHabit) return;
+      const t = r.task;
 
-    if (t.includes('운동') || t.includes('스트레칭') || t.includes('산책') || t.includes('요가')) {
-      result.운동++;
-    } else if (t.includes('명상') || t.includes('호흡') || t.includes('휴식') || t.includes('감정일기')) {
-      result['정신 건강']++;
-    } else if (t.includes('공부') || t.includes('학습') || t.includes('독서') || t.includes('코딩')) {
-      result.공부++;
-    } else if (t.includes('업무') || t.includes('회의') || t.includes('보고서') || t.includes('일')) {
-      result.업무++;
-    } else {
-      result.기타++;
-    }
-  });
+      if (t.includes('운동') || t.includes('스트레칭') || t.includes('산책') || t.includes('요가')) {
+        result.운동++;
+      } else if (t.includes('명상') || t.includes('호흡') || t.includes('휴식') || t.includes('감정일기')) {
+        result['정신 건강']++;
+      } else if (t.includes('공부') || t.includes('학습') || t.includes('독서') || t.includes('코딩')) {
+        result.공부++;
+      } else if (t.includes('업무') || t.includes('회의') || t.includes('보고서') || t.includes('일')) {
+        result.업무++;
+      } else {
+        result.기타++;
+      }
+    });
 
-  return Object.entries(result).map(([name, value]) => ({ name, value }));
-}, [routines]);
-  // ✅ 통계: 주차별 완료율과 만족도
-  const weeklyTrend = useMemo(() => {
+    return Object.entries(result).map(([name, value]) => ({ name, value }));
+  }, [routines]);
+
+    const weeklyTrend = useMemo(() => {
     const weeks: Record<string, { count: number; done: number; totalRating: number }> = {
       'Week 1': { count: 0, done: 0, totalRating: 0 },
     };
@@ -200,6 +198,7 @@ const habitTypeData = useMemo(() => {
   return (
     <main className="max-w-4xl mx-auto p-6 space-y-8">
       <h1 className="text-2xl font-bold">나의 웰빙 루틴</h1>
+
       {routines
         .filter((r): r is Routine => !!r)
         .map(routine => (
