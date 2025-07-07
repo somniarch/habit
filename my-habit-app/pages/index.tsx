@@ -14,16 +14,29 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// 타입 정의
+type Routine = {
+  id: string;
+  day: string;
+  start: string;
+  end: string;
+  task: string;
+  done: boolean;
+  rating: number;
+  isHabit?: boolean;
+  description?: string;
+};
+
 export default function HomePage() {
-  const [routines, setRoutines] = useState([]);
-  const [suggestions, setSuggestions] = useState({});
-  const [loadingStates, setLoadingStates] = useState({});
-  const [activeCardId, setActiveCardId] = useState(null);
-  const [selectedDay, setSelectedDay] = useState('월');
-  const [activeTab, setActiveTab] = useState('routine');
-  const [diaryImageUrl] = useState(null);
-  const [diaryLoading] = useState(false);
-  const [diaryError] = useState(null);
+  const [routines, setRoutines] = useState<Routine[]>([]);
+  const [suggestions, setSuggestions] = useState<Record<string, string[]>>({});
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+  const [activeCardId, setActiveCardId] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState<string>('월');
+  const [activeTab, setActiveTab] = useState<'routine' | 'stats' | 'diary'>('routine');
+  const [diaryImageUrl] = useState<string | null>(null);
+  const [diaryLoading] = useState<boolean>(false);
+  const [diaryError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchRoutines = async () => {
@@ -32,12 +45,12 @@ export default function HomePage() {
         .select('*')
         .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('루틴 불러오기 오류:', error.message);
+      if (error || !data) {
+        console.error('루틴 불러오기 오류:', error?.message);
         return;
       }
 
-      const mapped = data.map((r) => ({
+      const mapped: Routine[] = data.map((r: any) => ({
         id: r.id.toString(),
         day: r.day,
         start: r.start,
@@ -54,17 +67,17 @@ export default function HomePage() {
     fetchRoutines();
   }, []);
 
-  const handleDelete = (id) => {
+  const handleDelete = (id: string) => {
     setRoutines((prev) => prev.filter((r) => r.id !== id));
   };
 
-  const handleRate = (id, rating) => {
+  const handleRate = (id: string, rating: number) => {
     setRoutines((prev) =>
       prev.map((r) => (r.id === id ? { ...r, rating } : r))
     );
   };
 
-  const handleSuggestHabit = async (id) => {
+  const handleSuggestHabit = async (id: string) => {
     const routine = routines.find((r) => r.id === id);
     const nextIndex = routines.findIndex((r) => r.id === id) + 1;
     const next = routines[nextIndex];
@@ -90,9 +103,9 @@ export default function HomePage() {
     }
   };
 
-  const handleAddHabit = (id, habit) => {
+  const handleAddHabit = (id: string, habit: string) => {
     const index = routines.findIndex((r) => r.id === id);
-    const newHabit = {
+    const newHabit: Routine = {
       id: Date.now().toString(),
       day: routines[index].day,
       start: routines[index].end,
@@ -107,7 +120,7 @@ export default function HomePage() {
     setRoutines(updated);
   };
 
-  const handleAddRoutine = (routine) => {
+  const handleAddRoutine = (routine: Routine) => {
     setRoutines((prev) => [...prev, routine]);
   };
 
@@ -131,7 +144,7 @@ export default function HomePage() {
   };
 
   const completionData = useMemo(() => {
-    const grouped = {};
+    const grouped: Record<string, { total: number; done: number }> = {};
     routines.forEach((r) => {
       if (!grouped[r.day]) grouped[r.day] = { total: 0, done: 0 };
       grouped[r.day].total += 1;
@@ -173,7 +186,7 @@ export default function HomePage() {
   }, [routines]);
 
   const weeklyTrend = useMemo(() => {
-    const weeks = {
+    const weeks: Record<string, { count: number; done: number; totalRating: number }> = {
       'Week 1': { count: 0, done: 0, totalRating: 0 },
     };
 
