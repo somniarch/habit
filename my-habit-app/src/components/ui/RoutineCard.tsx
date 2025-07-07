@@ -12,7 +12,7 @@ type Routine = {
   isHabit?: boolean;
 };
 
-type RoutineCardProps = {
+type Props = {
   routine: Routine;
   onDelete: (id: string) => void;
   onRate: (id: string, rating: number) => void;
@@ -32,59 +32,64 @@ export default function RoutineCard({
   isLoading,
   isActive,
   onAddHabit,
-}: RoutineCardProps) {
-  if (!routine) return null; // ✅ 안전하게 처리
+}: Props) {
+  if (!routine) return null;
 
   const displayTask = routine.isHabit
-    ? routine.task?.replace(/\(\s*습관\s*\)-?/, '') // ?로 안정성 강화
+    ? routine.task?.replace(/\(\s*습관\s*\)-?/, '')
     : routine.task;
 
-  const bgStyle = routine.isHabit
-    ? { backgroundColor: '#e3f2fd', padding: '6px 12px', borderRadius: '9999px' }
-    : {};
-
   return (
-    <div className="border rounded p-4 mt-2 space-y-2" style={bgStyle}>
+    <div className="bg-white p-4 rounded-xl shadow space-y-3">
       <div className="flex justify-between items-center">
-        <div className="flex flex-col">
-          <span className="font-semibold">
-            {routine.start} - {routine.end}
-          </span>
-          <span>{displayTask}</span>
+        <div className="text-sm font-medium">
+          <span className="font-bold text-base">
+            [{routine.start} - {routine.end}]
+          </span>{' '}
+          {displayTask} {routine.done && '✔'}
         </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="number"
-            min={0}
-            max={10}
-            value={routine.rating}
-            onChange={(e) => onRate(routine.id, Number(e.target.value))}
-            className="w-16 border px-2 py-1 rounded text-sm"
-          />
-          <button
-            onClick={() => onDelete(routine.id)}
-            className="text-red-500 text-sm"
-          >
-            삭제
-          </button>
-        </div>
+        <input
+          type="checkbox"
+          checked={routine.done}
+          readOnly
+          className="w-5 h-5 accent-blue-500"
+        />
       </div>
 
-      <div className="flex justify-between items-center text-sm text-blue-600 mt-1">
-        <button onClick={() => onSuggestHabit(routine.id)}>
-          + 이 위치에 웰빙 습관 추천받기
+      <div className="flex flex-wrap gap-1">
+        {Array.from({ length: 10 }, (_, i) => i + 1).map((num) => (
+          <button
+            key={num}
+            onClick={() => onRate(routine.id, num)}
+            className={`w-8 h-8 rounded text-sm font-medium ${
+              routine.rating === num
+                ? 'bg-black text-white'
+                : 'bg-gray-200 text-black'
+            }`}
+          >
+            {num}
+          </button>
+        ))}
+      </div>
+
+      <div>
+        <button
+          onClick={() => onSuggestHabit(routine.id)}
+          className="bg-gray-200 rounded-full px-4 py-1 text-sm hover:bg-gray-300"
+        >
+          + 습관 추천
         </button>
       </div>
 
       {isActive && (
-        <div className="mt-2 space-y-2">
+        <div>
           {isLoading ? (
-            <p className="text-gray-500">AI가 습관을 추천 중입니다...</p>
+            <p className="text-gray-400 text-sm">AI가 습관을 추천 중입니다...</p>
           ) : aiHabitSuggestions.length === 0 ? (
-            <p className="text-gray-400">추천할 습관이 없습니다.</p>
+            <p className="text-gray-400 text-sm">추천할 습관이 없습니다.</p>
           ) : (
-            <div className="flex flex-wrap gap-2">
-              {aiHabitSuggestions.map((habit: string, i: number) => (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {aiHabitSuggestions.map((habit, i) => (
                 <button
                   key={i}
                   onClick={() => onAddHabit(routine.id, habit)}
