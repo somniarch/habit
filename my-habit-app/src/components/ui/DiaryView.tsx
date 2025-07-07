@@ -1,5 +1,3 @@
-// src/components/ui/DiaryView.tsx
-
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -14,7 +12,7 @@ type Routine = {
 
 type DiaryViewProps = {
   topRoutine: Routine | null;
-  completedTasks: string[]; // ✅ 오늘 완료한 루틴+습관
+  completedTasks: string[]; // 오늘 완료한 루틴+습관
   selectedDay: string;
 };
 
@@ -34,10 +32,8 @@ export default function DiaryView({
       setLoading(true);
 
       try {
-        // ✅ 프롬프트 생성
         const imagePrompt = getImagePrompt(topRoutine.task, topRoutine.emoji);
 
-        // ✅ 이미지 생성 요청
         const imageRes = await fetch('/openai/generate-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -46,7 +42,6 @@ export default function DiaryView({
         const imageData = await imageRes.json();
         setDiaryImageUrl(imageData.imageUrl);
 
-        // ✅ 응원 메시지 생성 요청
         const diaryRes = await fetch('/openai/generate-diary', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
