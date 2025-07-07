@@ -93,6 +93,7 @@ export default function HomePage() {
         diaryImageUrl={diaryImageUrl}
         diaryLoading={diaryLoading}
         diaryError={diaryError}
+        selectedDay={selectedDay}
       />
       <HabitSuggestion
         aiHabitSuggestions={aiHabitSuggestions}
