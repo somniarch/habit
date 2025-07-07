@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import AuthForm from '../components/ui/AuthForm';
-import RoutineCard from '../components/ui/RoutineCard';
-import HabitSuggestion from '../components/ui/HabitSuggestion';
-import StatisticsCharts from '../components/ui/StatisticsCharts';
-import DiaryView from '../components/ui/DiaryView';
+import AuthForm from '../src/components/ui/AuthForm';
+import RoutineCard from '../src/components/ui/RoutineCard';
+import HabitSuggestion from '../src/components/ui/HabitSuggestion';
+import StatisticsCharts from '../src/components/ui/StatisticsCharts';
+import DiaryView from '../src/components/ui/DiaryView';
 
 export default function HomePage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
