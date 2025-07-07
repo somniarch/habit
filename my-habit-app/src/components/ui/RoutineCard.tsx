@@ -1,21 +1,24 @@
+'use client';
 import React from 'react';
 
-export default function RoutineCard({ routine, onUpdate, onDelete, onRate, onEdit }: any) {
+type RoutineCardProps = {
+  routine: any;
+  onUpdate: (routine: any) => void;
+  onDelete: (id: string) => void;
+  onRate: (id: string, rating: number) => void;
+  onEdit: (routine: any) => void;
+};
+
+export default function RoutineCard({
+  routine,
+  onUpdate,
+  onDelete,
+  onRate,
+  onEdit
+}: RoutineCardProps) {
   return (
-    <div className="routine-card">{/* 루틴 항목 UI */}</div>
+    <div className="routine-card">
+      {/* 루틴 항목 UI */}
+    </div>
   );
 }
-
-/* HabitSuggestion.tsx */
-import React from 'react';
-
-export default function HabitSuggestion({
-  aiHabitSuggestions, habitCandidates,
-  habitSuggestionIdx, addHabitBetween,
-  aiHabitLoading, onClose
-}: any) {
-  return (
-    <div className="habit-suggestions">{/* 습관 추천 UI */}</div>
-  );
-}
-
