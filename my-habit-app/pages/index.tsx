@@ -26,6 +26,18 @@ type Routine = {
   description?: string;
 };
 
+type RawRoutine = {
+  id: string;
+  day: string;
+  start: string;
+  end: string;
+  task: string;
+  done: boolean;
+  rating?: number;
+  is_habit?: boolean;
+  description?: string;
+};
+
 export default function HomePage() {
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [suggestions, setSuggestions] = useState<Record<string, string[]>>({});
@@ -63,7 +75,7 @@ export default function HomePage() {
         return;
       }
 
-      const mapped: Routine[] = data.map((r: any) => ({
+      const mapped: Routine[] = (data as RawRoutine[]).map((r) => ({
         id: r.id.toString(),
         day: r.day,
         start: r.start,
@@ -74,7 +86,6 @@ export default function HomePage() {
         isHabit: r.is_habit,
         description: r.description,
       }));
-
       setRoutines(mapped);
     };
 
@@ -86,9 +97,7 @@ export default function HomePage() {
   };
 
   const handleRate = (id: string, rating: number) => {
-    setRoutines((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, rating } : r))
-    );
+    setRoutines((prev) => prev.map((r) => (r.id === id ? { ...r, rating } : r)));
   };
 
   const handleSuggestHabit = async (id: string) => {
@@ -231,7 +240,6 @@ export default function HomePage() {
         onPrevWeek={handlePrevWeek}
         onNextWeek={handleNextWeek}
       />
-
       <TabSwitcher activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {activeTab === 'routine' && (
