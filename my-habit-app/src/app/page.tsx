@@ -445,7 +445,7 @@ export default function Page() {
     link.href = URL.createObjectURL(blob);
     link.download = `habit_tracker_${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
-  };
+   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
