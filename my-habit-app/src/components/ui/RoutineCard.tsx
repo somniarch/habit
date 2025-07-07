@@ -14,20 +14,17 @@ type Routine = {
 
 type RoutineCardProps = {
   routine: Routine;
-  index: number;
   onDelete: (id: string) => void;
   onRate: (id: string, rating: number) => void;
-
-  onSuggestHabit: (index: number) => void;
+  onSuggestHabit: (id: string) => void;
   aiHabitSuggestions: string[];
   isLoading: boolean;
   isActive: boolean;
-  onAddHabit: (index: number, habit: string) => void;
+  onAddHabit: (id: string, habit: string) => void;
 };
 
 export default function RoutineCard({
   routine,
-  index,
   onDelete,
   onRate,
   onSuggestHabit,
@@ -71,7 +68,7 @@ export default function RoutineCard({
 
       {/* AI 추천 기능 삽입 */}
       <div className="flex justify-between items-center text-sm text-blue-600 mt-1">
-        <button onClick={() => onSuggestHabit(index)}>
+        <button onClick={() => onSuggestHabit(routine.id)}>
           + 이 위치에 웰빙 습관 추천받기
         </button>
       </div>
@@ -87,7 +84,7 @@ export default function RoutineCard({
               {aiHabitSuggestions.map((habit, i) => (
                 <button
                   key={i}
-                  onClick={() => onAddHabit(index, habit)}
+                  onClick={() => onAddHabit(routine.id, habit)}
                   className="bg-gray-200 rounded-full px-3 py-1 text-sm hover:bg-gray-300"
                 >
                   {habit}
