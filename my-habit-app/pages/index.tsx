@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import RoutineCard from '@/components/RoutineCard';
-import StatisticsCharts from '@/components/StatisticsCharts';
-import DiaryView from '@/components/DiaryView';
+import React, { useEffect, useState, useMemo } from 'react';
+import RoutineCard from '@/components/ui/RoutineCard';
+import StatisticsCharts from '@/components/ui/StatisticsCharts';
+import DiaryView from '@/components/ui/DiaryView';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -20,6 +20,7 @@ type Routine = {
   done: boolean;
   rating: number;
   isHabit?: boolean;
+  description?: string;
   emoji?: string;
 };
 
@@ -33,47 +34,33 @@ export default function HomePage() {
   const [diaryLoading, setDiaryLoading] = useState(false);
   const [diaryError, setDiaryError] = useState<string | null>(null);
 
-  // 통계용 임시 데이터
-  const completionData = [
-    { name: '월', value: 80 },
-    { name: '화', value: 60 },
-    { name: '수', value: 90 },
-    { name: '목', value: 70 },
-    { name: '금', value: 85 },
-  ];
-  const habitTypeData = [
-    { name: '신체', value: 5 },
-    { name: '정신', value: 3 },
-    { name: '기타', value: 2 },
-  ];
-  const weeklyTrend = [
-    { name: 'Week 1', 완료율: 75, 만족도: 4.2 },
-    { name: 'Week 2', 완료율: 82, 만족도: 4.6 },
-  ];
-  const COLORS = ['#6366f1', '#ec4899', '#facc15'];
-
   useEffect(() => {
-    setRoutines([
-      {
-        id: '1',
-        day: '월',
-        start: '08:00',
-        end: '09:00',
-        task: '명상',
-        done: false,
-        rating: 5,
-      },
-      {
-        id: '2',
-        day: '월',
-        start: '09:00',
-        end: '10:00',
-        task: '(습관) 스트레칭',
-        done: true,
-        rating: 7,
-        isHabit: true,
-      },
-    ]);
+    const fetchRoutines = async () => {
+      const { data, error } = await supabase
+        .from('my-habit-app')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('루틴 불러오기 오류:', error.message);
+        return;
+      }
+
+      const mapped: Routine[] = data.map((r: any) => ({
+        id: r.id.toString(),
+        day: r.day,
+        start: r.start,
+        end: r.end,
+        task: r.task,
+        done: r.done,
+        rating: r.rating ?? 0,
+        isHabit: r.is_habit,
+        description: r.description,
+      }));
+      setRoutines(mapped);
+    };
+
+    fetchRoutines();
   }, []);
 
   const handleDelete = (id: string) => {
@@ -142,6 +129,70 @@ export default function HomePage() {
     link.click();
   };
 
+  // ✅ 통계: 요일별 완료율
+  const completionData = useMemo(() => {
+    const grouped: Record<string, { total: number; done: number }> = {};
+    routines.forEach(r => {
+      if (!grouped[r.day]) grouped[r.day] = { total: 0, done: 0 };
+      grouped[r.day].total += 1;
+      if (r.done) grouped[r.day].done += 1;
+    });
+
+    return Object.entries(grouped).map(([day, val]) => ({
+      name: day,
+      value: Math.round((val.done / val.total) * 100),
+    }));
+  }, [routines]);
+
+ // ✅ 통계: 습관 유형별 개수
+const habitTypeData = useMemo(() => {
+  const result = {
+    운동: 0,
+    정신 건강: 0,
+    공부: 0,
+    업무: 0,
+    기타: 0,
+  };
+
+  routines.forEach(r => {
+    if (!r.isHabit) return;
+    const t = r.task;
+
+    if (t.includes('운동') || t.includes('스트레칭') || t.includes('산책') || t.includes('요가')) {
+      result.운동++;
+    } else if (t.includes('명상') || t.includes('호흡') || t.includes('휴식') || t.includes('감정일기')) {
+      result['정신 건강']++;
+    } else if (t.includes('공부') || t.includes('학습') || t.includes('독서') || t.includes('코딩')) {
+      result.공부++;
+    } else if (t.includes('업무') || t.includes('회의') || t.includes('보고서') || t.includes('일')) {
+      result.업무++;
+    } else {
+      result.기타++;
+    }
+  });
+
+  return Object.entries(result).map(([name, value]) => ({ name, value }));
+}, [routines]);
+  // ✅ 통계: 주차별 완료율과 만족도
+  const weeklyTrend = useMemo(() => {
+    const weeks: Record<string, { count: number; done: number; totalRating: number }> = {
+      'Week 1': { count: 0, done: 0, totalRating: 0 },
+    };
+
+    routines.forEach(r => {
+      const week = 'Week 1'; // 추후 주차 분기 가능
+      weeks[week].count += 1;
+      if (r.done) weeks[week].done += 1;
+      weeks[week].totalRating += r.rating;
+    });
+
+    return Object.entries(weeks).map(([name, v]) => ({
+      name,
+      완료율: v.count ? Math.round((v.done / v.count) * 100) : 0,
+      만족도: v.count ? parseFloat((v.totalRating / v.count).toFixed(1)) : 0,
+    }));
+  }, [routines]);
+
   const topRoutine = routines
     .filter(r => r.day === selectedDay && r.done)
     .sort((a, b) => b.rating - a.rating)[0] || null;
@@ -150,27 +201,27 @@ export default function HomePage() {
     <main className="max-w-4xl mx-auto p-6 space-y-8">
       <h1 className="text-2xl font-bold">나의 웰빙 루틴</h1>
       {routines
-      .filter((r): r is Routine => !!r) // undefined 제거
-      .map(routine => (
-        <RoutineCard
-          key={routine.id}
-          routine={routine}
-          onDelete={handleDelete}
-          onRate={handleRate}
-          onSuggestHabit={handleSuggestHabit}
-          aiHabitSuggestions={suggestions[routine.id] ?? []}
-          isLoading={loadingStates[routine.id] ?? false}
-          isActive={activeCardId === routine.id}
-          onAddHabit={handleAddHabit}
-        />
-    ))}
+        .filter((r): r is Routine => !!r)
+        .map(routine => (
+          <RoutineCard
+            key={routine.id}
+            routine={routine}
+            onDelete={handleDelete}
+            onRate={handleRate}
+            onSuggestHabit={handleSuggestHabit}
+            aiHabitSuggestions={suggestions[routine.id] ?? []}
+            isLoading={loadingStates[routine.id] ?? false}
+            isActive={activeCardId === routine.id}
+            onAddHabit={handleAddHabit}
+          />
+        ))}
 
       <StatisticsCharts
         completionData={completionData}
         habitTypeData={habitTypeData}
         weeklyTrend={weeklyTrend}
         downloadCSV={downloadCSV}
-        COLORS={COLORS}
+        COLORS={['#6366f1', '#ec4899', '#facc15']}
       />
 
       <h2 className="text-xl font-semibold mt-10">{selectedDay}요일 그림일기</h2>
