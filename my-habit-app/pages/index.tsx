@@ -222,7 +222,7 @@ export default function HomePage() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-      <WeekdaySelector selectedDay={selectedDay} onChange={setSelectedDay} />
+      <WeekdaySelector selectedDay={selectedDay} onSelectDay={setSelectedDay} />
       <TabSwitcher activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {activeTab === 'routine' && (
